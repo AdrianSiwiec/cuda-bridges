@@ -1,0 +1,9 @@
+[submodule "3rdparty/moderngpu"]
+	path = 3rdparty/moderngpu
+	url = git@github.com:moderngpu/moderngpu.git
+[submodule "3rdparty/GpuConnectedComponents"]
+	path = 3rdparty/GpuConnectedComponents
+	url = https://github.com/jyosoman/GpuConnectedComponents.git
+[submodule "3rdparty/cudabfs"]
+	path = 3rdparty/cudabfs
+	url = https://github.com/adampolak/cudabfs.git

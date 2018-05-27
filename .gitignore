@@ -24,3 +24,6 @@
 test/**
 !test/test-downloader.py
 !test/networkrepository.txt
+
+# Binaries
+cpu-bridges
