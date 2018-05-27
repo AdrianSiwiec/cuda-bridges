@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <utility>
 using namespace std;
 
 typedef pair<int, int> pii;

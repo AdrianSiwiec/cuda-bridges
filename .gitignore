@@ -27,3 +27,4 @@ test/**
 
 # Binaries
 cpu-bridges
+networkrepository-parser
