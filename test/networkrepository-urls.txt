@@ -1,0 +1,4 @@
+# Links should starts with http://nrvis.com/download/
+# 
+# Small tests (< 10mb)
+http://nrvis.com/download/data/road/road-belgium-osm.zip

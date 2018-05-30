@@ -23,9 +23,11 @@
 # Tests
 test/**
 !test/test-downloader.py
-!test/networkrepository.txt
+!test/networkrepository-urls.txt
 !test/test-parser.py
 
 # Binaries
 cpu-bridges
 networkrepository-parser
+gpu-bfs-bridges 
+dimacs-parser
