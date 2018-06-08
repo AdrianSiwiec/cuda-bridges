@@ -12,8 +12,8 @@ args = parser.parse_args()
 # Pre-defined sources
 sources = {
     'Network Repository': {
-        'parser': '../networkrepository-parser',
-        'folder': 'networkrepository/in/',
+        'parser': '../networkrepository-parser.e',
+        'folder': 'networkrepository/',
         'ext': 'mtx'
     }
 }

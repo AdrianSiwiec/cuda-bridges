@@ -11,7 +11,12 @@ using namespace mgpu;
 #include <cstdlib>
 #include <cassert>
 #include <cstdio>
+#include <set>
 using namespace std;
+
+#include "gpu-bfs.hpp"
+#include "graph.hpp"
+#include "test_result.hpp"
 
 __global__ void UpdateDistanceAndVisitedKernel(
     const int* __restrict__ frontier, int frontier_size, int d,
@@ -294,35 +299,37 @@ void Bridges(
 }
 
 uint64_t ParallelBFS(
-    const vector<int>& nodes, const vector<int>& edges, int source) {
+    const vector<int>& nodes, const vector<int>& edges, int source, TestResult & dest) {
   standard_context_t context(false);
   // cout << "source " << source << endl;
   MGPU_MEM(int) dev_nodes = to_mem(nodes, context);
   MGPU_MEM(int) dev_edges = to_mem(edges, context);
   MGPU_MEM(int) dev_distance = mgpu::fill<int>(-1, nodes.size() - 1, context);
   mem_t<int> dev_is_bridge = mgpu::fill<int>(1, edges.size(), context);
-
+  // cout << "JEST OK" << endl;
   uint64_t t = Time();
   ParallelBFS(
       nodes.size() - 1, edges.size(), dev_nodes, dev_edges, source,
       dev_distance, context);
-  
+  // cout << "JEST OK" << endl;
   // MOSTY
   dev_edges = to_mem(edges, context);
   Bridges(
     nodes.size() - 1, edges.size(), dev_nodes, dev_edges, source,
     dev_distance, dev_is_bridge, context);
-  
+  // cout << "JEST OK" << endl;
   t = Time() - t;
   cerr << "GPU: " << t << " ms" << endl;
     
   vector<int> is_bridge = from_mem(dev_is_bridge);
-  int bnum = 0;
-  for (int x : is_bridge) {
-    if (x == 1) bnum++;
-  }
-  assert(!(bnum&1));
-  cout << "Source: " << source << " Bridges: " << bnum/2 << endl;
+  vector<short> dupa(is_bridge.begin(), is_bridge.end());
+  dest = TestResult(dupa);
+  // int bnum = 0;
+  // for (int x : is_bridge) {
+  //   if (x == 1) bnum++;
+  // }
+  // assert(!(bnum&1));
+  // cout << "Source: " << source << " Bridges: " << bnum/2 << endl;
 
   vector<int> distance;
   dtoh(distance, dev_distance.data(), nodes.size() - 1);
@@ -353,25 +360,89 @@ uint64_t SequentialBFS(
   return CalculateChecksum(distance);
 }
 
-int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " GRAPH" << endl;
-    exit(1);
+std::set<std::pair<int, int>> directed_edges;
+
+TestResult parallel_bfs_naive(Graph const& graph) {
+  
+  int n = graph.get_N(), m = graph.get_M() * 2;
+  vector<int> nodes(n + 1, 0), edges(m);
+  
+  directed_edges.clear();
+  auto const graph_edges = graph.get_Edges();
+
+  for (int i = 0; i < m/2; ++i) {
+    directed_edges.insert(std::make_pair(graph_edges[i].first-1, graph_edges[i].second-1));
+    directed_edges.insert(std::make_pair(graph_edges[i].second-1, graph_edges[i].first-1));
+  }
+  assert(directed_edges.size() == m);
+
+  int prev = -1;
+  int curr = 0;
+  int ite = 0;
+  for (auto de : directed_edges) {
+    if (de.first == prev) {
+      nodes[curr]++;
+    } else {
+      curr++;
+      nodes[curr] = nodes[curr-1];
+      nodes[curr]++;
+    }
+    prev = de.first;
+    edges[ite++] = de.second;
   }
 
-  ifstream in(argv[1], ios::binary);  
-  assert(in.is_open());
-  int n, m;
-  in.read((char*)&n, sizeof(int));
-  in.read((char*)&m, sizeof(int));
-  vector<int> nodes(n + 1), edges(m);
-  in.read((char*)nodes.data(), nodes.size() * sizeof(int));
-  in.read((char*)edges.data(), edges.size() * sizeof(int));
+  // cout << "TMP " << endl;
+  // for (auto xd : nodes) {
+  //   cout << xd << " ";
 
-  for (int i = 0; i < 5; ++i) {
-    int source = rand() % n;
+  // }
+  // cout << endl;
+  // for (auto xd : edges) {
+  //   cout << xd << " ";
+
+  // }
+  // cout << endl;
+
+  TestResult result(0);
+  for (int i = 0; i < 1; ++i) {
+    int source = 0;//rand() % n;
     uint64_t seqsum = SequentialBFS(nodes, edges, source);
-    uint64_t parsum = ParallelBFS(nodes, edges, source);
+    uint64_t parsum = ParallelBFS(nodes, edges, source, result);
+    // cout << seqsum << " " << parsum << endl;
     assert(seqsum == parsum);
   }
+  
+  vector<short> final_res;
+  int asd = 0;
+  for (auto de : directed_edges) {
+    if (de.first < de.second) {
+      final_res.push_back(result[asd] == 1 ? 1 : 0);
+    }
+    asd++;
+  }
+
+  return TestResult(final_res);
 }
+
+// int main(int argc, char* argv[]) {
+//   if (argc != 2) {
+//     cerr << "Usage: " << argv[0] << " GRAPH" << endl;
+//     exit(1);
+//   }
+
+//   ifstream in(argv[1], ios::binary);  
+//   assert(in.is_open());
+//   int n, m;
+//   in.read((char*)&n, sizeof(int));
+//   in.read((char*)&m, sizeof(int));
+//   vector<int> nodes(n + 1), edges(m);
+//   in.read((char*)nodes.data(), nodes.size() * sizeof(int));
+//   in.read((char*)edges.data(), edges.size() * sizeof(int));
+
+//   for (int i = 0; i < 5; ++i) {
+//     int source = rand() % n;
+//     uint64_t seqsum = SequentialBFS(nodes, edges, source);
+//     uint64_t parsum = ParallelBFS(nodes, edges, source);
+//     assert(seqsum == parsum);
+//   }
+// }
