@@ -2,3 +2,9 @@
 # 
 # Small tests (< 10mb)
 http://nrvis.com/download/data/road/road-belgium-osm.zip
+http://nrvis.com/download/data/road/road-asia-osm.zip
+http://nrvis.com/download/data/road/road-germany-osm.zip
+http://nrvis.com/download/data/road/road-roadNet-CA.zip
+http://nrvis.com/download/data/road/road-netherlands-osm.zip
+http://nrvis.com/download/data/road/road-great-britain-osm.zip
+http://nrvis.com/download/data/ca/ca-hollywood-2009.zip
