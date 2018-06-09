@@ -1,12 +1,12 @@
-#include "cpu-dfs.hpp"
-#include "gpu-bfs.hpp"
+#include "cpu-bridges-dfs.hpp"
+#include "gpu-bridges-bfs.cuh"
 
 #include <cassert>
 #include <iostream>
 #include <unordered_map>
 
 #include "graph.hpp"
-#include "test_result.hpp"
+#include "test-result.hpp"
 #include "timer.hpp"
 
 // Misc
@@ -42,12 +42,11 @@ int main(int argc, char *argv[]) {
             args[it++] = alg.first;
         }
     }
-    
+
     Graph const input_graph = Graph::read_from_file(argv[1]);
     // Graph input_graph = Graph::read_from_stdin();
-    // std::cout << input_graph.get_N() << " " << input_graph.get_M() << std::endl;
-    // auto xd = input_graph.get_Edges();
-    // for (auto e : xd) {
+    // std::cout << input_graph.get_N() << " " << input_graph.get_M() <<
+    // std::endl; auto xd = input_graph.get_Edges(); for (auto e : xd) {
     //     std::cout << e.first << " " << e.second << std::endl;
     // }
 

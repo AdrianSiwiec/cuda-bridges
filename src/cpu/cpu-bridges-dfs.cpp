@@ -1,10 +1,10 @@
-#include "cpu-dfs.hpp"
+#include "cpu-bridges-dfs.hpp"
 
 #include <map>
 #include <vector>
 
 #include "graph.hpp"
-#include "test_result.hpp"
+#include "test-result.hpp"
 
 int visit_time;
 std::vector<std::vector<int> > G;

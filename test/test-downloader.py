@@ -32,7 +32,6 @@ def download_one(url, folder):
     subprocess.run(["unzip", "-d" + folder, local_filepath, "*.mtx"])
     subprocess.run(["rm", local_filepath])
 
-    print('to file ({0}) DONE.'.format(local_filename))
     return
 
 def download(source_name):

@@ -7,9 +7,7 @@ void Timer::start() { c_start = std::clock(); }
 
 void Timer::stop() { c_end = std::clock(); }
 
-double Timer::get_ms() { 
-    return 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-}
+double Timer::get_ms() { return 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC; }
 
 void Timer::print_info() {
     std::cerr.precision(4);
