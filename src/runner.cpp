@@ -1,5 +1,6 @@
 #include "cpu-bridges-dfs.hpp"
 #include "gpu-bridges-bfs.cuh"
+#include "gpu-bridges-cc.cuh"
 
 #include <cassert>
 #include <iostream>
@@ -49,6 +50,8 @@ int main(int argc, char *argv[]) {
     // std::endl; auto xd = input_graph.get_Edges(); for (auto e : xd) {
     //     std::cout << e.first << " " << e.second << std::endl;
     // }
+    parallel_cc(input_graph);
+    return 0;
 
     TestResult previous_result(input_graph.get_M());
 
