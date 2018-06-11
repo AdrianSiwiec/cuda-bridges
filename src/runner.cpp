@@ -22,7 +22,8 @@ const std::string _usage =
 typedef TestResult (*BridgesFunction)(Graph const &);
 
 std::unordered_map<std::string, BridgesFunction> algorithms = {
-    {"cpu", &sequential_dfs}, {"gpu", &parallel_bfs_naive}};
+    {"cpu", &sequential_dfs}, {"gpu", &parallel_bfs_naive},
+    {"cc", &parallel_cc}};
 
 // Main func
 int main(int argc, char *argv[]) {
@@ -50,8 +51,8 @@ int main(int argc, char *argv[]) {
     // std::endl; auto xd = input_graph.get_Edges(); for (auto e : xd) {
     //     std::cout << e.first << " " << e.second << std::endl;
     // }
-    parallel_cc(input_graph);
-    return 0;
+    // parallel_cc(input_graph);
+    // return 0;
 
     TestResult previous_result(input_graph.get_M());
 

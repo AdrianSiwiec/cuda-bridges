@@ -148,7 +148,44 @@ mem_t<int> count_succ(int const n, mem_t<ll>& directed, mem_t<int>& directed_bac
     return succ;
 }
 
-#define dbg 1
+template<typename op_t>
+mem_t<int> segment_tree(mem_t<int>& init, op_t op, int init_leaf, context_t& context) {
+    int const n = init.size();
+    // cout << "siz " << n << endl;
+    int M = 1;
+    while (M < init.size()) {
+        M <<= 1;
+    }
+    mem_t<int> segtree(2*M, context);
+    dtod(segtree.data() + M, init.data(), init.size());
+
+    int * segtree_data = segtree.data();
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            if (index >= M + n) {
+                segtree_data[index] = init_leaf;
+            }
+        },
+        2*M, context); 
+    // cudaMemset(segtree.data() + M + init.size(), n, (M - init.size()) * sizeof(int));
+
+    int begin = M/2;
+    while (begin >= 1) {
+        transform(
+            [=] MGPU_DEVICE(int index) {
+                if (index >= begin) {
+                    segtree_data[index] = op(segtree_data[2*index], segtree_data[2*index+1]);
+                }
+            },
+            2*begin, context); 
+        begin >>= 1;
+    }
+
+    return segtree;
+}
+
+
+#define dbg 0
 template<typename T>
 void print_device_mem(mem_t<T>& device_mem) {
     if (!dbg) return;
@@ -278,6 +315,9 @@ TestResult parallel_cc(Graph const& graph) {
     mem_t<int> subtree = mgpu::fill<int>(n, n, context);
     int * subtree_data = subtree.data();
 
+    mem_t<int> parent = mgpu::fill<int>(-1, n, context);
+    int * parent_data = parent.data();
+
     transform(
         [=] MGPU_DEVICE(int index) {
             if (index < rank_ordered_edges_backward_data[index]) {
@@ -288,12 +328,17 @@ TestResult parallel_cc(Graph const& graph) {
 
                 // parent[to] = from
                 // czyli jestem w parze (parent[to], to)
+                parent_data[preorder_data[to]] = preorder_data[from];
 
                 subtree_data[to] = (rank_ordered_edges_backward_data[index] - 1 - index) / 2 + 1;
             }
         },
         succ.size(), context);
     print_device_mem(subtree);
+
+    // cout << "PARENT" << endl;
+    print_device_mem(parent);
+    // cout << "PAREND" << endl;
 
     // Change original vertex numeration
     mem_t<ll> final_edge_list(directed_m, context);
@@ -359,7 +404,11 @@ TestResult parallel_cc(Graph const& graph) {
     transform_segreduce(
         [=] MGPU_DEVICE(int index) {
             ll packed = final_edge_list_data[index];
-            return static_cast<int>(packed) & 0xFFFFFFFF;
+
+            int from = static_cast<int>(packed >> 32);
+            int to = static_cast<int>(packed) & 0xFFFFFFFF;
+            if (to == parent_data[from]) return (int)n+1;
+            return (int)(static_cast<int>(packed) & 0xFFFFFFFF);
         }, 
         final_edge_list.size(), segments.data(), 
         segments.size(), minima.data(), mgpu::minimum_t<int>(), n+1, 
@@ -373,7 +422,11 @@ TestResult parallel_cc(Graph const& graph) {
     transform_segreduce(
         [=] MGPU_DEVICE(int index) {
             ll packed = final_edge_list_data[index];
-            return static_cast<int>(packed) & 0xFFFFFFFF;
+
+            int from = static_cast<int>(packed >> 32);
+            int to = static_cast<int>(packed) & 0xFFFFFFFF;
+            if (to == parent_data[from]) return (int)(-1);
+            return (int)(static_cast<int>(packed) & 0xFFFFFFFF);
         }, 
         final_edge_list.size(), segments.data(), 
         segments.size(), maxima.data(), mgpu::maximum_t<int>(), -1, 
@@ -382,6 +435,85 @@ TestResult parallel_cc(Graph const& graph) {
     print_device_mem(maxima);
 
     // I N T E R V A L  T R E E to find min/max for each subtree
+    mem_t<int> segtree_min = segment_tree(minima, mgpu::minimum_t<int>(), minima.size()+1, context);
+    print_device_mem(segtree_min);
 
-    return TestResult(0);
+    mem_t<int> segtree_max = segment_tree(maxima, mgpu::maximum_t<int>(), -1, context);
+    print_device_mem(segtree_max);
+
+    // sooo... time to respond!
+    print_device_mem(preorder);
+    print_device_mem(subtree);
+
+    int const M = segtree_min.size()/2;
+    int * segtree_min_data = segtree_min.data();
+    int * segtree_max_data = segtree_max.data();
+
+    mem_t<int> is_bridge_end = mgpu::fill<int>(0, n, context);
+    int * is_bridge_end_data = is_bridge_end.data();
+
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            // index - vertex id in org graph
+            // preorder[index] - preorder id in spanning tree
+            // subtree[index] - size of the subtree of index
+            
+            int va = M + preorder_data[index], vb = M + preorder_data[index] + subtree_data[index] - 1;
+            /* Skrajne przedziały do rozkładu. */
+            int mini = segtree_min_data[va];
+            mini = min(mini, segtree_min_data[vb]);
+            // if (va != vb) wyn += w[vb];
+            /* Spacer aż do momentu spotkania. */
+            while (va / 2 != vb / 2) {
+                if (va % 2 == 0) mini = min(mini, segtree_min_data[va + 1]); /* prawa bombka na lewej ścieżce */
+                if (vb % 2 == 1) mini = min(mini, segtree_min_data[vb - 1]); /* lewa bombka na prawej ścieżce */
+                va /= 2; vb /= 2;
+            }
+
+            va = M + preorder_data[index], vb = M + preorder_data[index] + subtree_data[index] - 1;
+            /* Skrajne przedziały do rozkładu. */
+            int maxi = segtree_max_data[va];
+            maxi = max(maxi, segtree_max_data[vb]);
+            // if (va != vb) wyn += w[vb];
+            /* Spacer aż do momentu spotkania. */
+            while (va / 2 != vb / 2) {
+                if (va % 2 == 0) maxi = max(maxi, segtree_max_data[va + 1]); /* prawa bombka na lewej ścieżce */
+                if (vb % 2 == 1) maxi = max(maxi, segtree_max_data[vb - 1]); /* lewa bombka na prawej ścieżce */
+                va /= 2; vb /= 2;
+            }
+            bool wyskok = false;
+            if (mini < preorder_data[index] || maxi > preorder_data[index] + subtree_data[index] - 1) {
+                wyskok = true;
+            }
+            if (!wyskok) {
+                is_bridge_end_data[preorder_data[index]] = 1;
+            }
+            // printf("pre id: %d last id : %d minimum is : %d maximum is : %d wyskok : %d\n", 
+            //     preorder_data[index], preorder_data[index] + subtree_data[index] - 1, mini, maxi, wyskok);
+        },
+        preorder.size(), context);
+
+    // unbelievable, time to result!!!!
+    mem_t<short> result = mgpu::fill<short>(0, device_edges.size(), context);
+    short * result_data = result.data();
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            int from = device_edges_data[index].first - 1;
+            int to = device_edges_data[index].second - 1;
+
+            from = preorder_data[from];
+            to = preorder_data[to];
+
+            if (is_bridge_end_data[to] && parent_data[to] == from) {
+                result_data[index] = 1;
+            }
+            if (is_bridge_end_data[from] && parent_data[from] == to) {
+                result_data[index] = 1;
+            }
+        },
+        device_edges.size(), context);
+
+    print_device_mem(result);
+
+    return TestResult(from_mem(result));
 }
