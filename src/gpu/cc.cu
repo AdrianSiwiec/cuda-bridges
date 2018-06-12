@@ -537,7 +537,7 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
         tree_edges_data[dest_index] = d_ed_list[source_index].x;
     });
 
-    // printf("res size : %d, n : %d\n", tree_edges.size(), num_n);
+    if (num_n -1 != tree_edges.size())printf("res size : %d, n : %d\n", tree_edges.size(), num_n);
     assert(num_n - 1 == tree_edges.size());
 
     free(an);
