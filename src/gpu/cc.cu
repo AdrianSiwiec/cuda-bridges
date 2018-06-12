@@ -135,7 +135,7 @@ __global__ void select_winner2(int *an, cc::edge *ed_list, int num_e, int num_n,
 
 __global__ void select_tree_edges_and_merge2(int *an, cc::edge *ed_list,
                                              int num_e, int num_n, int *flag,
-                                             char *mark, int *ISSPAN) {
+                                             char *mark, int *ISSPAN, bool *is_tree) {
     int a, b, x, y, a_x, a_y, mn, mx;
     long long int t;
     a = blockIdx.y * gridDim.x + blockIdx.x;
@@ -144,7 +144,7 @@ __global__ void select_tree_edges_and_merge2(int *an, cc::edge *ed_list,
 
     if (a < num_n) {
         if (ISSPAN[a] != -1) {
-            ed_list[ISSPAN[a]].tree = true;
+            is_tree[ISSPAN[a]] = true;
 
             t = ed_list[ISSPAN[a]].x;
             x = (int)t & 0xFFFFFFFF;
@@ -204,7 +204,7 @@ __global__ void select_winner(int *an, cc::edge *ed_list, int num_e, int num_n,
 
 __global__ void select_tree_edges_and_merge(int *an, cc::edge *ed_list,
                                             int num_e, int num_n, int *flag,
-                                            char *mark, int *ISSPAN) {
+                                            char *mark, int *ISSPAN, bool *is_tree) {
     int a, b, x, y, a_x, a_y, mn, mx;
     long long int t;
     a = blockIdx.y * gridDim.x + blockIdx.x;
@@ -213,7 +213,7 @@ __global__ void select_tree_edges_and_merge(int *an, cc::edge *ed_list,
 
     if (a < num_n) {
         if (ISSPAN[a] != -1) {
-            ed_list[ISSPAN[a]].tree = true;
+            is_tree[ISSPAN[a]] = true;
 
             t = ed_list[ISSPAN[a]].x;
             x = (int)t & 0xFFFFFFFF;
@@ -385,12 +385,14 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
     mem_t<int> MEM_d_an(num_n, context);
     mem_t<int> MEM_d_flag(1, context);
     mem_t<int> MEM_d_hook_edge = mgpu::fill<int>(-1, num_n, context);
+    mem_t<bool> MEM_d_is_tree = mgpu::fill<bool>(false, num_e, context);
     d_mark = MEM_d_mark.data();
     mask = MEM_d_mask.data();
     d_winner = MEM_d_winner.data();
     d_an = MEM_d_an.data();
     d_flag = MEM_d_flag.data();
     d_hook_edge = MEM_d_hook_edge.data();
+    bool * d_is_tree = MEM_d_is_tree.data();
 
     //   Finished intializing space for the program, ideally timing should be
     //   from here.
@@ -440,7 +442,7 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
             cudaThreadSynchronize();
 
             select_tree_edges_and_merge<<<grid_n, threads>>>(
-                d_an, d_ed_list, num_e, num_n, d_flag, d_mark, d_hook_edge);
+                d_an, d_ed_list, num_e, num_n, d_flag, d_mark, d_hook_edge, d_is_tree);
 
             lpc++;
             lpc = lpc % 4;
@@ -450,7 +452,7 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
             cudaThreadSynchronize();
 
             select_tree_edges_and_merge2<<<grid_n, threads>>>(
-                d_an, d_ed_list, num_e, num_n, d_flag, d_mark, d_hook_edge);
+                d_an, d_ed_list, num_e, num_n, d_flag, d_mark, d_hook_edge, d_is_tree);
 
             lpc = 0;
         }
@@ -490,42 +492,42 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
 
     mark = (char *)calloc(num_e, sizeof(char));
     // end of main loop
-    checkCudaErrors(
-        cudaMemcpy(an, d_an, num_n * sizeof(int), cudaMemcpyDeviceToHost));
-    int j, cnt = 0;
-    for (j = 0; j < num_n; j++) {
-        if (an[j] == j) {
-            cnt++;
-        }
-    }
+    // checkCudaErrors(
+    //     cudaMemcpy(an, d_an, num_n * sizeof(int), cudaMemcpyDeviceToHost));
+    // int j, cnt = 0;
+    // for (j = 0; j < num_n; j++) {
+    //     if (an[j] == j) {
+    //         cnt++;
+    //     }
+    // }
 
-    checkCudaErrors(cudaMemcpy(ed_list, d_ed_list, num_e * sizeof(cc::edge),
-                               cudaMemcpyDeviceToHost));
+    // checkCudaErrors(cudaMemcpy(ed_list, d_ed_list, num_e * sizeof(cc::edge),
+    //                            cudaMemcpyDeviceToHost));
 
-    int tree_e_num = 0;
-    for (j = 0; j < num_e; ++j) {
-        if (ed_list[j].tree) {
-            tree_e_num++;
+    // int tree_e_num = 0;
+    // for (j = 0; j < num_e; ++j) {
+    //     if (ed_list[j].tree) {
+    //         tree_e_num++;
 
-            long long int t = ed_list[j].x;
-            int x = (int)t & 0xFFFFFFFF;
-            int y = (int)(t >> 32);
-            // cout << x + 1 << " " << y + 1 << "\n";
-        }
-    }
+    //         long long int t = ed_list[j].x;
+    //         int x = (int)t & 0xFFFFFFFF;
+    //         int y = (int)(t >> 32);
+    //         // cout << x + 1 << " " << y + 1 << "\n";
+    //     }
+    // }
 
     // printf("The number of components=%d\n", cnt);
     // printf("The number of tree edges=%d vertexes=%d isok=%d\n", tree_e_num,
     //        num_n, num_n - 1 == tree_e_num);
 
-    assert(num_n - 1 == tree_e_num);
+    // assert(num_n - 1 == tree_e_num);
 
     // Construct the compaction state with transform_compact.
     auto compact = transform_compact(num_e, context);
 
     // The upsweep determines which items to compact i.e. which edges belong to tree
     int stream_count = compact.upsweep([=]MGPU_DEVICE(int index) {
-        return d_ed_list[index].tree;
+        return d_is_tree[index];
     });
 
     // Compact the results into this buffer.
@@ -534,6 +536,9 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
     compact.downsweep([=]MGPU_DEVICE(int dest_index, int source_index) {
         tree_edges_data[dest_index] = d_ed_list[source_index].x;
     });
+
+    // printf("res size : %d, n : %d\n", tree_edges.size(), num_n);
+    assert(num_n - 1 == tree_edges.size());
 
     free(an);
     free(mark);

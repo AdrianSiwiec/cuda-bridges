@@ -4,7 +4,6 @@
 namespace cc{
 struct ed{
     long long int x;
-    bool tree;
 };
 
 typedef struct ed edge;
