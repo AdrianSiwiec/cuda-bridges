@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     for (int i = 2; i < args.size(); ++i) {
         // Prepare
         std::string alg_name = args[i];
-        std::cerr << "=== " << alg_name << " ===" << std::endl;
+        // std::cerr << "=== " << alg_name << " ===" << std::endl;
 
         Timer timer(alg_name);
 

@@ -483,10 +483,10 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
     } while (flag);
 
     t = clock() - t;
-    printf(
-        "Time required for computing connected components on the graph is: %f "
-        "seconds.\n",
-        ((float)t) / CLOCKS_PER_SEC);
+    // printf(
+    //     "Time required for computing connected components on the graph is: %f "
+    //     "seconds.\n",
+    //     ((float)t) / CLOCKS_PER_SEC);
 
     mark = (char *)calloc(num_e, sizeof(char));
     // end of main loop
@@ -514,9 +514,11 @@ mem_t<long long int> cc_main(int const num_n, int const num_e, cc::edge *d_ed_li
         }
     }
 
-    printf("The number of components=%d\n", cnt);
-    printf("The number of tree edges=%d vertexes=%d isok=%d\n", tree_e_num,
-           num_n, num_n - 1 == tree_e_num);
+    // printf("The number of components=%d\n", cnt);
+    // printf("The number of tree edges=%d vertexes=%d isok=%d\n", tree_e_num,
+    //        num_n, num_n - 1 == tree_e_num);
+
+    assert(num_n - 1 == tree_e_num);
 
     // Construct the compaction state with transform_compact.
     auto compact = transform_compact(num_e, context);

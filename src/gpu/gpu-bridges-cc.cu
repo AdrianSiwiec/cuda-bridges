@@ -103,7 +103,9 @@ mem_t<ll> make_directed(mem_t<ll>& undirected, context_t& context) {
     return directed;
 }
 
-mem_t<int> count_succ(int const n, mem_t<ll>& directed, mem_t<int>& directed_backidx, context_t& context) {
+mem_t<int> count_succ(int const n, mem_t<ll>& directed, context_t& context) {
+    mem_t<int> directed_backidx = find_backward(directed, context);
+    
     mem_t<int> first = mgpu::fill<int>(-1, n, context);
     mem_t<int> next = mgpu::fill<int>(-1, directed.size(), context);
 
@@ -208,16 +210,8 @@ void print_device_mem(mem_t<ll>& device_mem) {
     }
 }
 
-TestResult parallel_cc(Graph const& graph) {
-    standard_context_t context(false);
-
-    // Prepare memory
-    int const n = graph.get_N();
-    int const undirected_m = graph.get_M();
-    int const directed_m = graph.get_M() * 2;
-
-    mem_t<edge> device_edges = to_mem(graph.get_Edges(), context);
-    mem_t<cc::edge> device_cc_graph(undirected_m, context);
+mem_t<ll> spanning_tree(int const n, mem_t<edge>& device_edges, context_t& context) {
+    mem_t<cc::edge> device_cc_graph(device_edges.size(), context);
 
     edge * device_edges_data = device_edges.data();
     cc::edge * device_cc_graph_data = device_cc_graph.data();
@@ -236,24 +230,16 @@ TestResult parallel_cc(Graph const& graph) {
             device_cc_graph_data[index].x = packed;
             device_cc_graph_data[index].tree = false;
         },
-        undirected_m, context);
+        device_edges.size(), context);
     
     // Use CC algorithm to find spanning tree
-    mem_t<ll> device_tree_edges = cc_main(n, undirected_m, device_cc_graph_data, context);
+    mem_t<ll> device_tree_edges = cc_main(n, device_edges.size(), device_cc_graph_data, context);
     print_device_mem(device_tree_edges);
 
-    // Create directed-spanning-tree edge list
-    mem_t<int> device_tree_directed_edges_backidx;
-    mem_t<ll> device_tree_directed_edges = make_directed(device_tree_edges, context);
-    device_tree_directed_edges_backidx = find_backward(device_tree_directed_edges, context);
-    print_device_mem(device_tree_directed_edges);
-    print_device_mem(device_tree_directed_edges_backidx);
+    return device_tree_edges;
+}
 
-    // Count succ array
-    mem_t<int> succ = count_succ(n, device_tree_directed_edges, device_tree_directed_edges_backidx, context);
-    print_device_mem(succ);
-
-    // List rank
+mem_t<int> list_rank(mem_t<int>& succ, standard_context_t& context) {
     mem_t<int> rank(succ.size(), context);
     int * rank_data = rank.data();
     int * succ_data = succ.data();
@@ -264,8 +250,12 @@ TestResult parallel_cc(Graph const& graph) {
     htod(succ_data + root, &at_root, 1);
 
     cudaWeiJaJaListRank(rank.data(), succ.size(), head, succ_data, context);
-    print_device_mem(rank);
 
+    return rank;
+}
+
+mem_t<ll> order_by_rank(mem_t<ll>& device_tree_directed_edges, mem_t<int>& rank, context_t& context) {
+    int * rank_data = rank.data();
     mem_t<ll> rank_ordered_edges(device_tree_directed_edges.size(), context);
     ll * rank_ordered_edges_data = rank_ordered_edges.data();
     ll * device_tree_directed_edges_data = device_tree_directed_edges.data();
@@ -273,16 +263,18 @@ TestResult parallel_cc(Graph const& graph) {
         [=] MGPU_DEVICE(int index) {
             rank_ordered_edges_data[rank_data[index]] = device_tree_directed_edges_data[index];
         },
-        succ.size(), context);
+        device_tree_directed_edges.size(), context);
     print_device_mem(rank_ordered_edges);
 
-    mem_t<int> rank_ordered_edges_backward = find_backward(rank_ordered_edges, context);
-    print_device_mem(rank_ordered_edges_backward);
-    
-    // Count preorder
-    mem_t<int> scan_params(succ.size(), context);
-    int * scan_params_data = scan_params.data();
+    return rank_ordered_edges;
+}
+
+mem_t<int> count_preorder(int const n, mem_t<ll>& rank_ordered_edges, mem_t<int>& rank_ordered_edges_backward, context_t& context) {
+    ll * rank_ordered_edges_data = rank_ordered_edges.data();
     int * rank_ordered_edges_backward_data = rank_ordered_edges_backward.data();
+
+    mem_t<int> scan_params(rank_ordered_edges.size(), context);
+    int * scan_params_data = scan_params.data();
     transform(
         [=] MGPU_DEVICE(int index) {
             if (index < rank_ordered_edges_backward_data[index]) {
@@ -291,14 +283,13 @@ TestResult parallel_cc(Graph const& graph) {
                 scan_params_data[index] = 0;
             }
         },
-        succ.size(), context);
+        rank_ordered_edges.size(), context);
 
     scan<scan_type_inc>(scan_params.data(), scan_params.size(), scan_params.data(), context);
     print_device_mem(scan_params);
 
     mem_t<int> preorder = mgpu::fill<int>(0, n, context);
     int * preorder_data = preorder.data();
-    rank_ordered_edges_data = rank_ordered_edges.data();
     transform(
         [=] MGPU_DEVICE(int index) {
             if (index < rank_ordered_edges_backward_data[index]) {
@@ -308,48 +299,29 @@ TestResult parallel_cc(Graph const& graph) {
                 preorder_data[to] = scan_params_data[index];
             }
         },
-        succ.size(), context);
+        rank_ordered_edges.size(), context);
     print_device_mem(preorder);
 
-    // Count subtree size
-    mem_t<int> subtree = mgpu::fill<int>(n, n, context);
-    int * subtree_data = subtree.data();
+    return preorder;
+}
 
-    mem_t<int> parent = mgpu::fill<int>(-1, n, context);
-    int * parent_data = parent.data();
+mem_t<ll> relabel_and_direct(mem_t<edge>& device_edges, mem_t<int>& preorder, context_t& context) {
+    int undirected_m = device_edges.size();
 
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            if (index < rank_ordered_edges_backward_data[index]) {
-                ll packed = rank_ordered_edges_data[index];
-            
-                int from = static_cast<int>(packed >> 32);
-                int to = static_cast<int>(packed) & 0xFFFFFFFF;
+    edge * device_edges_data = device_edges.data();
+    int * preorder_data = preorder.data();
 
-                // parent[to] = from
-                // czyli jestem w parze (parent[to], to)
-                parent_data[preorder_data[to]] = preorder_data[from];
-
-                subtree_data[to] = (rank_ordered_edges_backward_data[index] - 1 - index) / 2 + 1;
-            }
-        },
-        succ.size(), context);
-    print_device_mem(subtree);
-
-    // cout << "PARENT" << endl;
-    print_device_mem(parent);
-    // cout << "PAREND" << endl;
-
-    // Change original vertex numeration
-    mem_t<ll> final_edge_list(directed_m, context);
+    mem_t<ll> final_edge_list(2*undirected_m, context);
     ll * final_edge_list_data = final_edge_list.data();
 
     transform(
         [=] MGPU_DEVICE(int index) {
-            ll packed = device_cc_graph_data[index].x;
+            int from = device_edges_data[index].first - 1;
+            int to = device_edges_data[index].second - 1;
 
-            int from = static_cast<int>(packed >> 32);
-            int to = static_cast<int>(packed) & 0xFFFFFFFF;
+            ll packed;
+            // int from = static_cast<int>(packed >> 32);
+            // int to = static_cast<int>(packed) & 0xFFFFFFFF;
 
             from = preorder_data[from];
             to = preorder_data[to];
@@ -371,9 +343,13 @@ TestResult parallel_cc(Graph const& graph) {
         undirected_m, context);
 
     mergesort(final_edge_list.data(), final_edge_list.size(), mgpu::less_t<ll>(), context);
-    print_device_mem(final_edge_list);
 
-    // Find local min/max from outgoing edges for every vertex
+    return final_edge_list;
+}
+
+mem_t<int> count_segments(mem_t<ll>& final_edge_list, context_t& context) {
+    ll * final_edge_list_data = final_edge_list.data();
+
     // Construct the compaction state with transform_compact.
     auto compact = transform_compact(final_edge_list.size(), context);
 
@@ -395,63 +371,41 @@ TestResult parallel_cc(Graph const& graph) {
     compact.downsweep([=]MGPU_DEVICE(int dest_index, int source_index) {
         segments_data[dest_index] = source_index;
     });
-    print_device_mem(segments);
 
-    // Reduce segments to achieve min/max
-    mem_t<int> minima(n, context);
-    int * minima_data = minima.data();
-    
+    return segments;
+}
+
+template<typename op_t>
+void reduce_outgoing(mem_t<int>& dest, mem_t<ll>& final_edge_list, 
+    mem_t<int>& parent, mem_t<int>& segments, op_t op, int op_init, context_t& context) {
+
+    ll * final_edge_list_data = final_edge_list.data();
+    int * parent_data = parent.data();
     transform_segreduce(
         [=] MGPU_DEVICE(int index) {
             ll packed = final_edge_list_data[index];
 
             int from = static_cast<int>(packed >> 32);
             int to = static_cast<int>(packed) & 0xFFFFFFFF;
-            if (to == parent_data[from]) return (int)n+1;
+            if (to == parent_data[from]) return (int)(op_init);
             return (int)(static_cast<int>(packed) & 0xFFFFFFFF);
         }, 
         final_edge_list.size(), segments.data(), 
-        segments.size(), minima.data(), mgpu::minimum_t<int>(), n+1, 
+        segments.size(), dest.data(), op, op_init, 
         context);
+}
 
-    print_device_mem(minima);
-
-    mem_t<int> maxima(n, context);
-    int * maxima_data = maxima.data();
-    
-    transform_segreduce(
-        [=] MGPU_DEVICE(int index) {
-            ll packed = final_edge_list_data[index];
-
-            int from = static_cast<int>(packed >> 32);
-            int to = static_cast<int>(packed) & 0xFFFFFFFF;
-            if (to == parent_data[from]) return (int)(-1);
-            return (int)(static_cast<int>(packed) & 0xFFFFFFFF);
-        }, 
-        final_edge_list.size(), segments.data(), 
-        segments.size(), maxima.data(), mgpu::maximum_t<int>(), -1, 
-        context);
-
-    print_device_mem(maxima);
-
-    // I N T E R V A L  T R E E to find min/max for each subtree
-    mem_t<int> segtree_min = segment_tree(minima, mgpu::minimum_t<int>(), minima.size()+1, context);
-    print_device_mem(segtree_min);
-
-    mem_t<int> segtree_max = segment_tree(maxima, mgpu::maximum_t<int>(), -1, context);
-    print_device_mem(segtree_max);
-
-    // sooo... time to respond!
-    print_device_mem(preorder);
-    print_device_mem(subtree);
-
+mem_t<int> execute_segtree_queries(int const n, mem_t<int>& segtree_min, mem_t<int>& segtree_max, 
+    mem_t<int>& preorder, mem_t<int>& subtree, context_t& context) {
     int const M = segtree_min.size()/2;
-    int * segtree_min_data = segtree_min.data();
-    int * segtree_max_data = segtree_max.data();
 
     mem_t<int> is_bridge_end = mgpu::fill<int>(0, n, context);
     int * is_bridge_end_data = is_bridge_end.data();
 
+    int * segtree_min_data = segtree_min.data();
+    int * segtree_max_data = segtree_max.data();
+    int * preorder_data = preorder.data();
+    int * subtree_data = subtree.data();
     transform(
         [=] MGPU_DEVICE(int index) {
             // index - vertex id in org graph
@@ -493,7 +447,16 @@ TestResult parallel_cc(Graph const& graph) {
         },
         preorder.size(), context);
 
-    // unbelievable, time to result!!!!
+    return is_bridge_end;
+}
+
+mem_t<short> count_result(mem_t<edge>& device_edges, mem_t<int>& preorder, mem_t<int>& parent, 
+    mem_t<int>& is_bridge_end, context_t& context) {
+    edge * device_edges_data = device_edges.data();
+    int * preorder_data = preorder.data();
+    int * parent_data = parent.data();
+    int * is_bridge_end_data = is_bridge_end.data();
+
     mem_t<short> result = mgpu::fill<short>(0, device_edges.size(), context);
     short * result_data = result.data();
     transform(
@@ -512,7 +475,116 @@ TestResult parallel_cc(Graph const& graph) {
             }
         },
         device_edges.size(), context);
+    return result;
+}
 
+TestResult parallel_cc(Graph const& graph) {
+    standard_context_t context(false);
+
+    // Prepare memory
+    int const n = graph.get_N();
+    int const undirected_m = graph.get_M();
+    int const directed_m = graph.get_M() * 2;
+
+    mem_t<edge> device_edges = to_mem(graph.get_Edges(), context);
+    edge * device_edges_data = device_edges.data();
+    
+    // Find spanning tree
+    mem_t<ll> device_tree_edges = spanning_tree(n, device_edges, context);
+
+    // Create directed-spanning-tree edge list (warn: device_tree_edges is unused till this moment)
+    mem_t<ll> device_tree_directed_edges = make_directed(device_tree_edges, context);
+    ll * device_tree_directed_edges_data = device_tree_directed_edges.data();
+    print_device_mem(device_tree_directed_edges);
+    
+    // Count succ array
+    mem_t<int> succ = count_succ(n, device_tree_directed_edges, context);
+    int * succ_data = succ.data();
+    print_device_mem(succ);
+
+    // List rank (warn: succ array is broken till this moment)
+    mem_t<int> rank = list_rank(succ, context);
+    int * rank_data = rank.data();
+    print_device_mem(rank);
+
+    // Rearrange tree edges using counted ranks
+    mem_t<ll> rank_ordered_edges = order_by_rank(device_tree_directed_edges, rank, context);
+    ll * rank_ordered_edges_data = rank_ordered_edges.data();
+    print_device_mem(rank_ordered_edges);
+
+    // Find reverse-edge
+    mem_t<int> rank_ordered_edges_backward = find_backward(rank_ordered_edges, context);
+    int * rank_ordered_edges_backward_data = rank_ordered_edges_backward.data();
+    print_device_mem(rank_ordered_edges_backward);
+    
+    // Count preorder
+    mem_t<int> preorder = count_preorder(n, rank_ordered_edges, rank_ordered_edges_backward, context);
+    int * preorder_data = preorder.data();
+    print_device_mem(preorder);
+
+    // Count subtree size & parent
+    mem_t<int> subtree = mgpu::fill<int>(n, n, context);
+    int * subtree_data = subtree.data();
+
+    mem_t<int> parent = mgpu::fill<int>(-1, n, context);
+    int * parent_data = parent.data();
+
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            if (index < rank_ordered_edges_backward_data[index]) {
+                ll packed = rank_ordered_edges_data[index];
+            
+                int from = static_cast<int>(packed >> 32);
+                int to = static_cast<int>(packed) & 0xFFFFFFFF;
+
+                // parent[to] = from
+                // czyli jestem w parze (parent[to], to)
+                parent_data[preorder_data[to]] = preorder_data[from];
+
+                subtree_data[to] = (rank_ordered_edges_backward_data[index] - 1 - index) / 2 + 1;
+            }
+        },
+        rank_ordered_edges.size(), context);
+    print_device_mem(subtree);
+    print_device_mem(parent);
+
+    // Change original vertex numeration
+    mem_t<ll> final_edge_list = relabel_and_direct(device_edges, preorder, context);
+    ll * final_edge_list_data = final_edge_list.data();
+    print_device_mem(final_edge_list);
+
+    // Find local min/max from outgoing edges for every vertex
+    mem_t<int> segments = count_segments(final_edge_list, context);
+    print_device_mem(segments);
+
+    // Reduce segments to achieve min/max
+    mem_t<int> minima(n, context);
+    int * minima_data = minima.data();
+
+    mem_t<int> maxima(n, context);
+    int * maxima_data = maxima.data();
+
+    reduce_outgoing(minima, final_edge_list, parent, segments, mgpu::minimum_t<int>(), n+1, context);
+    reduce_outgoing(maxima, final_edge_list, parent, segments, mgpu::maximum_t<int>(), -1, context);
+
+    print_device_mem(minima);
+    print_device_mem(maxima);
+
+    // I N T E R V A L  T R E E to find min/max for each subtree
+    mem_t<int> segtree_min = segment_tree(minima, mgpu::minimum_t<int>(), minima.size()+1, context);
+    int * segtree_min_data = segtree_min.data();
+    print_device_mem(segtree_min);
+
+    mem_t<int> segtree_max = segment_tree(maxima, mgpu::maximum_t<int>(), -1, context);
+    int * segtree_max_data = segtree_max.data();
+    print_device_mem(segtree_max);
+
+    // sooo... time to respond!
+    mem_t<int> is_bridge_end = execute_segtree_queries(n, segtree_min, segtree_max, preorder, subtree, context);
+    int * is_bridge_end_data = is_bridge_end.data();
+
+    // unbelievable, time to result!!!!
+    mem_t<short> result = count_result(device_edges, preorder, parent, is_bridge_end, context);
     print_device_mem(result);
 
     return TestResult(from_mem(result));
