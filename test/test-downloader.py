@@ -2,6 +2,7 @@ import argparse
 import requests
 import shutil
 import pathlib
+import subprocess
 
 # Script command-line arguments
 parser = argparse.ArgumentParser()
@@ -12,7 +13,7 @@ args = parser.parse_args()
 sources = {
     'Network Repository': {
         'urlfile': 'networkrepository-urls.txt',
-        'folder': 'networkrepository/in/'
+        'folder': 'networkrepository/'
     }
 }
 
@@ -22,13 +23,15 @@ def download_one(url, folder):
     print('Downloading from... {0} '.format(url), end='')
     
     local_filename = url[url.rfind('/')+1:] # TODO
-    
+    local_filepath = folder + local_filename
+
     with requests.post(url, stream=True, allow_redirects=True) as r:
-        local_filepath = folder + local_filename
         with open(local_filepath, 'wb') as f:
             shutil.copyfileobj(r.raw, f)
 
-    print('to file ({0}) DONE.'.format(local_filename))
+    subprocess.run(["unzip", "-d" + folder, local_filepath, "*.mtx"])
+    subprocess.run(["rm", local_filepath])
+
     return
 
 def download(source_name):
