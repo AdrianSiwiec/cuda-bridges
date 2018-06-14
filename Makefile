@@ -4,7 +4,7 @@ CXXINC=-I ./include/
 
 NVCC=/usr/local/cuda/bin/nvcc
 NVCCFLAGS=-arch sm_30 -O3 -std=c++11 --expt-extended-lambda -w
-NVCCINC=-I/usr/local/cuda/include
+NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudaweijajalistrank/
 
 LDFLAGS=-L/usr/local/cuda/lib64 -lcudart
 
@@ -15,7 +15,8 @@ OBJDIR=obj
 SRCDIR=src
 
 RUNNER_OBJ=$(patsubst src/%.cpp,obj/%.o,$(wildcard src/runner.cpp src/util/*.cpp src/cpu/*.cpp)) \
-	$(patsubst src/%.cu,obj/%.o,$(wildcard src/gpu/*.cu))
+	$(patsubst src/%.cu,obj/%.o,$(wildcard src/gpu/*.cu)) \
+	$(patsubst %.cu,obj/%.o,$(wildcard 3rdparty/cudaweijajalistrank/*.cu))
 
 
 all: runner.e networkrepository-parser.e
@@ -44,6 +45,10 @@ $(OBJDIR)/gpu/%.o: $(SRCDIR)/gpu/%.cu
 	@mkdir -p $(dir $@)
 	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
 	
+$(OBJDIR)/3rdparty/cudaweijajalistrank/%.o: 3rdparty/cudaweijajalistrank/%.cu
+	@mkdir -p $(dir $@)
+	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
+
 .PHONY: all clean
 
 clean:

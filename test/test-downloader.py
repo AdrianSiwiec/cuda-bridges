@@ -25,9 +25,10 @@ def download_one(url, folder):
     local_filename = url[url.rfind('/')+1:] # TODO
     local_filepath = folder + local_filename
 
-    with requests.post(url, stream=True, allow_redirects=True) as r:
-        with open(local_filepath, 'wb') as f:
-            shutil.copyfileobj(r.raw, f)
+    # with requests.post(url, stream=True, allow_redirects=True) as r:
+    #     with open(local_filepath, 'wb') as f:
+    #         shutil.copyfileobj(r.raw, f)
+    subprocess.run(["wget", "-P" + folder, url])
 
     subprocess.run(["unzip", "-d" + folder, local_filepath, "*.mtx"])
     subprocess.run(["rm", local_filepath])
