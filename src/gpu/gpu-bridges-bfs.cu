@@ -7,7 +7,7 @@ using namespace mgpu;
 #include <vector>
 using namespace std;
 
-#include "bfs.cuh"
+#include "bfs-mgpu.cuh"
 #include "gpu-bridges-bfs.cuh"
 #include "graph.hpp"
 #include "test-result.hpp"
@@ -163,7 +163,7 @@ TestResult parallel_bfs_naive(Graph const& graph) {
 
     // Proper part
     // Execute BFS to compute distances (needed for determine parents)
-    ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance,
+    bfs_mgpu::ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance,
                 context);
 
     // Find bridges

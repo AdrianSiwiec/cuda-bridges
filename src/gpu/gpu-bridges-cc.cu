@@ -12,7 +12,7 @@ using namespace std;
 
 #include "cudaWeiJaJaListRank.h"
 
-#include "cc.cuh"
+#include "conn.cuh"
 #include "gpu-bridges-cc.cuh"
 
 #include "graph.hpp"
@@ -235,12 +235,30 @@ mem_t<ll> spanning_tree(int const n, mem_t<edge>& device_edges,
         device_edges.size(), context);
 
     // Use CC algorithm to find spanning tree
-    mem_t<ll> device_tree_edges =
-        cc_main(n, device_edges.size(), device_cc_graph_data, context);
+    mem_t<int> device_tree_edges = mgpu::fill<int>(0, device_edges.size(), context);//(device_edges.size(), context);
+    cc::compute(n, device_cc_graph.size(), device_cc_graph_data, device_tree_edges.data());
     print_device_mem(device_tree_edges);
 
+    int* device_tree_edges_data = device_tree_edges.data();
+    // Construct the compaction state with transform_compact.
+    auto compact = transform_compact(device_edges.size(), context);
+
+    // The upsweep determines which items to compact i.e. which edges belong to tree
+    int stream_count = compact.upsweep([=]MGPU_DEVICE(int index) {
+        return device_tree_edges_data[index] == 1;
+    });
+
+    // Compact the results into this buffer.
+    mem_t<ll> tree_edges(stream_count, context);
+    ll* tree_edges_data = tree_edges.data();
+    compact.downsweep([=]MGPU_DEVICE(int dest_index, int source_index) {
+        tree_edges_data[dest_index] = device_cc_graph_data[source_index].x;
+    });
+
+    assert(n - 1 == tree_edges.size());
+
     // Direct edges & return
-    return make_directed(device_tree_edges, context);
+    return make_directed(tree_edges, context);
 }
 
 mem_t<int> list_rank(int const n, mem_t<ll>& tree_edges_directed,
