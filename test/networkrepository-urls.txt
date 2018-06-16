@@ -1,6 +1,11 @@
 # Links should starts with http://nrvis.com/download/
 # 
 # Small tests (< 10mb)
+http://nrvis.com/download/data/dimacs10/kron_g500-logn16.zip
+http://nrvis.com/download/data/rand/kron_g500-logn17.zip
+http://nrvis.com/download/data/dimacs10/kron_g500-logn18.zip
+http://nrvis.com/download/data/rand/kron_g500-logn19.zip
+http://nrvis.com/download/data/rand/kron_g500-logn20.zip
 http://nrvis.com/download/data/road/road-belgium-osm.zip
 http://nrvis.com/download/data/road/road-asia-osm.zip
 http://nrvis.com/download/data/road/road-germany-osm.zip

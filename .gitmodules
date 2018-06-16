@@ -1,6 +1,6 @@
 [submodule "3rdparty/cudabfs"]
 	path = 3rdparty/cudabfs
-	url = https://github.com/adampolak/cudabfs.git
+	url = https://github.com/stobis/cudabfs.git
 [submodule "3rdparty/moderngpu"]
 	path = 3rdparty/moderngpu
 	url = https://github.com/moderngpu/moderngpu.git
