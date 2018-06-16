@@ -524,6 +524,11 @@ void fill_subtree_size_and_parent(mem_t<int>& subtree, mem_t<int>& parent,
 TestResult parallel_cc(Graph const& graph) {
     Timer timer("gpu-cc");
     standard_context_t context(false);
+        
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("init cuda");
+    }
 
     // Prepare constants
     int const n = graph.get_N();

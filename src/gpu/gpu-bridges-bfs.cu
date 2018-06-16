@@ -94,9 +94,9 @@ void Bridges(int n, int m, mem_t<int>& nodes, mem_t<int>& edges_from,
 }
 
 TestResult parallel_bfs_naive(Graph const& graph) {
-    Timer timer("gpu-bfs");
     standard_context_t context(false);
-
+    Timer timer("gpu-bfs");
+    
     // Prepare memory
     int const n = graph.get_N();
     int const undirected_m = graph.get_M();
