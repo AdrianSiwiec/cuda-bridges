@@ -6,10 +6,10 @@ http://nrvis.com/download/data/rand/kron_g500-logn17.zip
 http://nrvis.com/download/data/dimacs10/kron_g500-logn18.zip
 http://nrvis.com/download/data/rand/kron_g500-logn19.zip
 http://nrvis.com/download/data/rand/kron_g500-logn20.zip
-http://nrvis.com/download/data/road/road-belgium-osm.zip
-http://nrvis.com/download/data/road/road-asia-osm.zip
-http://nrvis.com/download/data/road/road-germany-osm.zip
-http://nrvis.com/download/data/road/road-roadNet-CA.zip
-http://nrvis.com/download/data/road/road-netherlands-osm.zip
-http://nrvis.com/download/data/road/road-great-britain-osm.zip
-http://nrvis.com/download/data/ca/ca-hollywood-2009.zip
+# http://nrvis.com/download/data/road/road-belgium-osm.zip
+# http://nrvis.com/download/data/road/road-asia-osm.zip
+# http://nrvis.com/download/data/road/road-germany-osm.zip
+# http://nrvis.com/download/data/road/road-roadNet-CA.zip
+# http://nrvis.com/download/data/road/road-netherlands-osm.zip
+# http://nrvis.com/download/data/road/road-great-britain-osm.zip
+# http://nrvis.com/download/data/ca/ca-hollywood-2009.zip

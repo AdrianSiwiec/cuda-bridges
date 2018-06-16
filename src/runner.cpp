@@ -2,6 +2,7 @@
 #include "gpu-bridges-bfs.cuh"
 #include "gpu-bridges-cc.cuh"
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <unordered_map>
@@ -47,8 +48,9 @@ int main(int argc, char *argv[]) {
 
     Graph const input_graph = Graph::read_from_file(argv[1]);
     // Graph input_graph = Graph::read_from_stdin();
-    // std::cout << input_graph.get_N() << " " << input_graph.get_M() <<
-    // std::endl; auto xd = input_graph.get_Edges(); for (auto e : xd) {
+    std::cerr << "N: " << input_graph.get_N() << " M: " << input_graph.get_M() << std::endl; 
+    // auto xd = input_graph.get_Edges(); 
+    // for (auto e : xd) {
     //     std::cout << e.first << " " << e.second << std::endl;
     // }
     // parallel_cc(input_graph);
@@ -80,5 +82,7 @@ int main(int argc, char *argv[]) {
         }
         previous_result = current;
     }
+    std::vector<short> result = previous_result.get_isBridge();
+    std::cerr << "# bridges: " << std::count(result.begin(), result.end(), 1) << std::endl;
     return 0;
 }

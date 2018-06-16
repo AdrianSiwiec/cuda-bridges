@@ -8,6 +8,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <algorithm>
+#include <random>
 using namespace std;
 
 typedef pair<int, int> pii;
@@ -86,6 +88,10 @@ int main(int argc, char *argv[]) {
     // for (auto & e : out_edges) {
     //   cout << e.first << " " << e.second << endl;
     // }
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(out_edges.begin(), out_edges.end(), g);
 
     ofstream out(argv[2], ios::binary);
     assert(out.is_open());
