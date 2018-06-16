@@ -4,6 +4,8 @@
 #include <fstream>
 #include <vector>
 
+typedef std::pair<int, int> edge;
+
 class Graph {
    private:
     int n, m;

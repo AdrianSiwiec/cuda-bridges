@@ -14,12 +14,9 @@ using namespace std;
 
 #include "conn.cuh"
 #include "gpu-bridges-cc.cuh"
-
+#include "gputils.cuh"
 #include "graph.hpp"
 #include "test-result.hpp"
-
-typedef pair<int, int> edge;
-typedef long long int ll;
 
 pair<mem_t<ll>, mem_t<int>> make_directed(mem_t<ll>& undirected, context_t& context) {
     mem_t<ll> directed(undirected.size() * 2, context);
@@ -155,29 +152,6 @@ mem_t<int> segment_tree(mem_t<int>& init, op_t op, int init_leaf,
     }
 
     return segtree;
-}
-
-#define dbg 0
-template <typename T>
-void print_device_mem(mem_t<T>& device_mem) {
-    if (!dbg) return;
-    cout << "= print <T>..." << endl;
-    vector<T> tmp = from_mem(device_mem);
-    for (auto x : tmp) {
-        cout << x << endl;
-    }
-}
-
-void print_device_mem(mem_t<ll>& device_mem) {
-    if (!dbg) return;
-    cout << "= print edge coded as ll..." << endl;
-    vector<ll> tmp = from_mem(device_mem);
-    for (auto xd : tmp) {
-        ll t = xd;
-        int x = (int)t & 0xFFFFFFFF;
-        int y = (int)(t >> 32);
-        cout << y << " " << x << endl;
-    }
 }
 
 pair<mem_t<ll>, mem_t<int>> spanning_tree(int const n, mem_t<edge>& device_edges,

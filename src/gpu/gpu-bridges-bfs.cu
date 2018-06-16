@@ -9,22 +9,9 @@ using namespace std;
 
 #include "bfs-mgpu.cuh"
 #include "gpu-bridges-bfs.cuh"
+#include "gputils.cuh"
 #include "graph.hpp"
 #include "test-result.hpp"
-
-// TODO: Move elsewhere
-typedef pair<int, int> edge;
-
-// Util
-template <typename T>
-void cpyAndPrint(mem_t<T>& gpu_mem) {
-    return;
-    vector<T> dupa = from_mem(gpu_mem);
-    for (T x : dupa) {
-        cout << x << " ";
-    }
-    cout << endl;
-}
 
 // Proper
 void Bridges(int n, int m, mem_t<int>& nodes, mem_t<int>& edges_from,
