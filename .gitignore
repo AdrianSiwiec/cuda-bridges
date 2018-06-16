@@ -26,6 +26,10 @@ test/**
 !test/networkrepository-urls.txt
 !test/test-parser.py
 
+# Tests.stats
+stats.out
+stats.csv
+
 # Binaries
 *.e
 obj/**

@@ -48,7 +48,9 @@ int main(int argc, char *argv[]) {
 
     Graph const input_graph = Graph::read_from_file(argv[1]);
     // Graph input_graph = Graph::read_from_stdin();
-    std::cerr << "N: " << input_graph.get_N() << " M: " << input_graph.get_M() << std::endl; 
+    std::cout << "%%% File: " << args[1] << std::endl;
+    std::cout << "%%% N: " << input_graph.get_N() << std::endl;
+    std::cout << "%%% M: " << input_graph.get_M() << std::endl; 
     // auto xd = input_graph.get_Edges(); 
     // for (auto e : xd) {
     //     std::cout << e.first << " " << e.second << std::endl;
@@ -83,6 +85,6 @@ int main(int argc, char *argv[]) {
         previous_result = current;
     }
     std::vector<short> result = previous_result.get_isBridge();
-    std::cerr << "# bridges: " << std::count(result.begin(), result.end(), 1) << std::endl;
+    std::cout << "%%% # bridges: " << std::count(result.begin(), result.end(), 1) << std::endl;
     return 0;
 }
