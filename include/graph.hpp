@@ -17,7 +17,7 @@ class Graph {
 
     int get_N() const;
     int get_M() const;
-    int get_M();
+    // int get_M();
     std::vector<std::pair<int, int>> const& get_Edges() const;
 
     static Graph read_from_file(const char*);

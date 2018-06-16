@@ -12,6 +12,7 @@ using namespace std;
 #include "gputils.cuh"
 #include "graph.hpp"
 #include "test-result.hpp"
+#include "timer.hpp"
 
 // Proper
 void Bridges(int n, int m, mem_t<int>& nodes, mem_t<int>& edges_from,
@@ -93,6 +94,7 @@ void Bridges(int n, int m, mem_t<int>& nodes, mem_t<int>& edges_from,
 }
 
 TestResult parallel_bfs_naive(Graph const& graph) {
+    Timer timer("gpu-bfs");
     standard_context_t context(false);
 
     // Prepare memory
@@ -111,6 +113,11 @@ TestResult parallel_bfs_naive(Graph const& graph) {
     int* dev_directed_edge_from_data = dev_directed_edge_from.data();
     int* dev_directed_edge_to_data = dev_directed_edge_to.data();
     int* dev_nodes_data = dev_nodes.data();
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("init memory");
+    }
 
     // Fill _directed_ arrays
     transform(
@@ -147,15 +154,30 @@ TestResult parallel_bfs_naive(Graph const& graph) {
             }
         },
         directed_m, context);
+    
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("preprocessing");
+    }
 
     // Proper part
     // Execute BFS to compute distances (needed for determine parents)
     bfs_mgpu::ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance,
                 context);
 
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("BFS");
+    }
+
     // Find bridges
     Bridges(n, directed_m, dev_nodes, dev_directed_edge_from,
             dev_directed_edge_to, dev_edges, dev_distance, dev_final, context);
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("Bridges");
+    }
 
     // Copy result to device and return
     return TestResult(from_mem(dev_final));

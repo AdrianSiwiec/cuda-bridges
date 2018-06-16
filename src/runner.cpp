@@ -23,8 +23,8 @@ const std::string _usage =
 typedef TestResult (*BridgesFunction)(Graph const &);
 
 std::unordered_map<std::string, BridgesFunction> algorithms = {
-    {"cpu", &sequential_dfs}, {"gpu", &parallel_bfs_naive},
-    {"cc", &parallel_cc}};
+    {"cpu-dfs", &sequential_dfs}, {"gpu-bfs", &parallel_bfs_naive},
+    {"gpu-cc", &parallel_cc}};
 
 // Main func
 int main(int argc, char *argv[]) {
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
         timer.stop();
 
         // Validate
-        timer.print_info();
+        timer.print_info("overall");
 
         // current.write_to_stdout();
 

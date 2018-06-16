@@ -17,7 +17,7 @@ int Graph::get_N() const { return n; }
 
 int Graph::get_M() const { return m; }
 
-int Graph::get_M() { return m; }
+// int Graph::get_M() { return m; }
 
 std::vector<std::pair<int, int>> const& Graph::get_Edges() const {
     return edges;

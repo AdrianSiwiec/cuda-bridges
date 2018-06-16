@@ -7,6 +7,7 @@
 using namespace mgpu;
 
 #define dbg 0
+#define detailed_time true
 
 typedef long long ll;
 

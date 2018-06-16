@@ -17,6 +17,7 @@ using namespace std;
 #include "gputils.cuh"
 #include "graph.hpp"
 #include "test-result.hpp"
+#include "timer.hpp"
 
 pair<mem_t<ll>, mem_t<int>> make_directed(mem_t<ll>& undirected, context_t& context) {
     mem_t<ll> directed(undirected.size() * 2, context);
@@ -521,6 +522,7 @@ void fill_subtree_size_and_parent(mem_t<int>& subtree, mem_t<int>& parent,
 }
 
 TestResult parallel_cc(Graph const& graph) {
+    Timer timer("gpu-cc");
     standard_context_t context(false);
 
     // Prepare constants
@@ -530,6 +532,11 @@ TestResult parallel_cc(Graph const& graph) {
 
     // Copy input graph to device mem
     mem_t<edge> all_edges_undirected = to_mem(graph.get_Edges(), context);
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("init memory");
+    }
 
     // Find spanning tree & direct edges
     mem_t<ll> tree_edges_directed;
@@ -541,6 +548,11 @@ TestResult parallel_cc(Graph const& graph) {
 
     print_device_mem(tree_edges_directed);
     print_device_mem(tree_edges_directed_backidx);
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("spanning tree");
+    }
 
     // List rank
     mem_t<int> rank = list_rank(n, tree_edges_directed, tree_edges_directed_backidx, context);
@@ -554,6 +566,11 @@ TestResult parallel_cc(Graph const& graph) {
     // Find reverse-edge
     mem_t<int> tree_edges_backlink = std::move(ordered.second);
     print_device_mem(tree_edges_backlink);
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("list rank");
+    }
 
     // Count preorder
     mem_t<int> preorder =
@@ -573,6 +590,11 @@ TestResult parallel_cc(Graph const& graph) {
         relabel_and_direct(all_edges_undirected, preorder, context);
     print_device_mem(all_edges_directed);
 
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("preorder&subtree size&relabel");
+    }
+
     // Find local min/max from outgoing edges for every vertex
     mem_t<int> segments = count_segments(all_edges_directed, context);
     print_device_mem(segments);
@@ -586,6 +608,11 @@ TestResult parallel_cc(Graph const& graph) {
                     mgpu::maximum_t<int>(), -1, context);
     print_device_mem(minima);
     print_device_mem(maxima);
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("local min/max for vertices");
+    }
 
     // I N T E R V A L  T R E E to find min/max for each subtree
     mem_t<int> segtree_min = segment_tree(minima, mgpu::minimum_t<int>(),
@@ -601,10 +628,20 @@ TestResult parallel_cc(Graph const& graph) {
         n, segtree_min, segtree_max, preorder, subtree, context);
     print_device_mem(is_bridge_end);
 
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("interval tree");
+    }
+
     // unbelievable, time to result!
     mem_t<short> result = count_result(all_edges_undirected, preorder, parent,
                                        is_bridge_end, context);
     print_device_mem(result);
+
+    if (detailed_time) {
+        context.synchronize();
+        timer.print_and_restart("extract result");
+    }
 
     return TestResult(from_mem(result));
 }
