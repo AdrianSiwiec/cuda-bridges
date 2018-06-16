@@ -21,61 +21,11 @@ using namespace std;
 typedef pair<int, int> edge;
 typedef long long int ll;
 
-mem_t<int> find_backward(mem_t<ll>& directed, context_t& context) {
-    // TODO: sth better
-    ll* directed_data = directed.data();
-
-    mem_t<int> mine_edge_idx = mgpu::fill_function<int>(
-        [=] MGPU_DEVICE(int index) { return index; }, directed.size(), context);
-    int* mine_edge_idx_data = mine_edge_idx.data();
-
-    mem_t<ll> mine_edge_each_pair_sorted(directed.size(), context);
-    ll* mine_edge_each_pair_sorted_data = mine_edge_each_pair_sorted.data();
-
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            ll packed = directed_data[index];
-
-            int from = static_cast<int>(packed >> 32);
-            int to = static_cast<int>(packed) & 0xFFFFFFFF;
-
-            if (from < to) {
-                mine_edge_each_pair_sorted_data[index] = packed;
-                return;
-            }
-
-            ll new_packed = 0;
-            new_packed = static_cast<ll>(to);
-            new_packed <<= 32;
-            new_packed += static_cast<ll>(from);
-
-            mine_edge_each_pair_sorted_data[index] = new_packed;
-        },
-        directed.size(), context);
-
-    mergesort(mine_edge_each_pair_sorted_data, mine_edge_idx_data,
-              directed.size(), mgpu::less_t<ll>(), context);
-
-    // mergesort(mine_edge_idx_data,
-    //           directed.size(), [=] MGPU_DEVICE( int a, int b ) { return mine_edge_each_pair_sorted_data[a] < mine_edge_each_pair_sorted_data[b]; }, context);
-
-    mem_t<int> back_edge_idx = mem_t<int>(directed.size(), context);
-    int* back_edge_idx_data = back_edge_idx.data();
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            if (index & 1) return;
-            int mine_idx = mine_edge_idx_data[index];
-            int pair_idx = mine_edge_idx_data[index + 1];
-
-            back_edge_idx_data[mine_idx] = pair_idx;
-            back_edge_idx_data[pair_idx] = mine_idx;
-        },
-        directed.size(), context);
-    return back_edge_idx;
-}
-
-mem_t<ll> make_directed(mem_t<ll>& undirected, context_t& context) {
+pair<mem_t<ll>, mem_t<int>> make_directed(mem_t<ll>& undirected, context_t& context) {
     mem_t<ll> directed(undirected.size() * 2, context);
+    mem_t<int> directed_backidx = mgpu::fill_function<int>(
+        [=] MGPU_DEVICE(int index) { return index; }, undirected.size() * 2, context);
+    mem_t<int> whereis(undirected.size() * 2, context);
 
     ll* directed_data = directed.data();
     ll* undirected_data = undirected.data();
@@ -97,14 +47,33 @@ mem_t<ll> make_directed(mem_t<ll>& undirected, context_t& context) {
         },
         undirected_m, context);
 
-    mergesort(directed_data, directed.size(), mgpu::less_t<ll>(), context);
+    mergesort(directed_data, directed_backidx.data(), directed.size(), mgpu::less_t<ll>(), context);
 
-    return directed;
+    int * whereis_data = whereis.data();
+    int * directed_backidx_data = directed_backidx.data();
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            whereis_data[directed_backidx_data[index]] = index;
+        },
+        directed.size(), context);
+
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            int gdziejabylem = directed_backidx_data[index];
+            int gdziemojapara;
+            if (gdziejabylem < undirected_m) {
+                gdziemojapara = gdziejabylem + undirected_m;
+            } else {
+                gdziemojapara = gdziejabylem - undirected_m;
+            }
+            directed_backidx_data[index] = whereis_data[gdziemojapara];
+        },
+        directed.size(), context);
+    
+    return make_pair(std::move(directed), std::move(directed_backidx));
 }
 
-mem_t<int> count_succ(int const n, mem_t<ll>& directed, context_t& context) {
-    mem_t<int> directed_backidx = find_backward(directed, context);
-
+mem_t<int> count_succ(int const n, mem_t<ll>& directed, mem_t<int>& directed_backidx, context_t& context) {
     mem_t<int> first = mgpu::fill<int>(-1, n, context);
     mem_t<int> next = mgpu::fill<int>(-1, directed.size(), context);
 
@@ -211,7 +180,7 @@ void print_device_mem(mem_t<ll>& device_mem) {
     }
 }
 
-mem_t<ll> spanning_tree(int const n, mem_t<edge>& device_edges,
+pair<mem_t<ll>, mem_t<int>> spanning_tree(int const n, mem_t<edge>& device_edges,
                         context_t& context) {
     mem_t<cc::edge> device_cc_graph(device_edges.size(), context);
 
@@ -261,10 +230,10 @@ mem_t<ll> spanning_tree(int const n, mem_t<edge>& device_edges,
     return make_directed(tree_edges, context);
 }
 
-mem_t<int> list_rank(int const n, mem_t<ll>& tree_edges_directed,
+mem_t<int> list_rank(int const n, mem_t<ll>& tree_edges_directed, mem_t<int>& tree_edges_directed_backidx,
                      standard_context_t& context) {
     // Count succ array
-    mem_t<int> succ = count_succ(n, tree_edges_directed, context);
+    mem_t<int> succ = count_succ(n, tree_edges_directed, tree_edges_directed_backidx, context);
     print_device_mem(succ);
 
     mem_t<int> rank(succ.size(), context);
@@ -281,7 +250,9 @@ mem_t<int> list_rank(int const n, mem_t<ll>& tree_edges_directed,
     return rank;
 }
 
-mem_t<ll> order_by_rank(mem_t<ll>& device_tree_directed_edges, mem_t<int>& rank,
+pair<mem_t<ll>, mem_t<int>> order_by_rank(mem_t<ll>& device_tree_directed_edges, 
+                        mem_t<int>& tree_edges_directed_backidx,
+                        mem_t<int>& rank,
                         context_t& context) {
     int* rank_data = rank.data();
     mem_t<ll> rank_ordered_edges(device_tree_directed_edges.size(), context);
@@ -295,7 +266,18 @@ mem_t<ll> order_by_rank(mem_t<ll>& device_tree_directed_edges, mem_t<int>& rank,
         device_tree_directed_edges.size(), context);
     print_device_mem(rank_ordered_edges);
 
-    return rank_ordered_edges;
+    mem_t<int> rank_ordered_edges_backidx(device_tree_directed_edges.size(), context);
+    int * rank_ordered_edges_backidx_data = rank_ordered_edges_backidx.data();
+    int * tree_edges_directed_backidx_data = tree_edges_directed_backidx.data();
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            int bylw = tree_edges_directed_backidx_data[index];
+            int bedzie = rank_data[bylw];
+            rank_ordered_edges_backidx_data[rank_data[index]] = bedzie;
+        },
+        device_tree_directed_edges.size(), context);
+
+    return make_pair(std::move(rank_ordered_edges), std::move(rank_ordered_edges_backidx));
 }
 
 mem_t<int> count_preorder(int const n, mem_t<ll>& rank_ordered_edges,
@@ -576,21 +558,27 @@ TestResult parallel_cc(Graph const& graph) {
     mem_t<edge> all_edges_undirected = to_mem(graph.get_Edges(), context);
 
     // Find spanning tree & direct edges
-    mem_t<ll> tree_edges_directed =
-        spanning_tree(n, all_edges_undirected, context);
+    mem_t<ll> tree_edges_directed;
+    mem_t<int> tree_edges_directed_backidx;
+    pair<mem_t<ll>, mem_t<int>> tree_edges_info = spanning_tree(n, all_edges_undirected, context);
+    
+    tree_edges_directed = std::move(tree_edges_info.first);
+    tree_edges_directed_backidx = std::move(tree_edges_info.second);
+
     print_device_mem(tree_edges_directed);
+    print_device_mem(tree_edges_directed_backidx);
 
     // List rank
-    mem_t<int> rank = list_rank(n, tree_edges_directed, context);
+    mem_t<int> rank = list_rank(n, tree_edges_directed, tree_edges_directed_backidx, context);
     print_device_mem(rank);
 
     // Rearrange tree edges using counted ranks
-    tree_edges_directed = order_by_rank(tree_edges_directed, rank, context);
+    pair<mem_t<ll>, mem_t<int>> ordered = order_by_rank(tree_edges_directed, tree_edges_directed_backidx, rank, context);
+    tree_edges_directed = std::move(ordered.first);
     print_device_mem(tree_edges_directed);
 
     // Find reverse-edge
-    mem_t<int> tree_edges_backlink =
-        find_backward(tree_edges_directed, context);
+    mem_t<int> tree_edges_backlink = std::move(ordered.second);
     print_device_mem(tree_edges_backlink);
 
     // Count preorder
