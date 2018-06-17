@@ -58,7 +58,8 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "valarray": "cpp",
-        "strstream": "cpp"
+        "strstream": "cpp",
+        "*.cuh": "cpp"
     },
     "python.pythonPath": "/usr/bin/python3"
 }

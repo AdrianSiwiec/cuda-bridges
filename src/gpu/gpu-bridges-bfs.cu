@@ -1,5 +1,6 @@
 #include <moderngpu/context.hxx>
 #include <moderngpu/kernel_mergesort.hxx>
+#include <moderngpu/kernel_reduce.hxx>
 #include <moderngpu/memory.hxx>
 using namespace mgpu;
 
@@ -182,6 +183,15 @@ TestResult parallel_bfs_naive(Graph const& graph) {
     if (detailed_time) {
         context.synchronize();
         timer.print_and_restart("Bridges");
+    }
+
+    if (detailed_time) {
+        mem_t<int> maxd(1, context);
+        reduce(dev_distance.data(), dev_distance.size(), maxd.data(), mgpu::maximum_t<int>(), context);
+        vector<int> maxd_host = from_mem(maxd);
+
+        context.synchronize();
+        timer.print_and_restart("Max distance: " + to_string(maxd_host.front()));
     }
 
     // Copy result to device and return
