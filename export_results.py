@@ -34,7 +34,9 @@ def parse_one(first, input):
         line = line.split(':')
         algo = line[0].strip()
         param = line[1].strip()
-        time = line[2].strip()[:-5]
+        time = line[2].strip()
+        if time.endswith(' ms.'):
+            time = time[:-4]
         # print(algo, param, time)
         if algo not in data_dict[test_name]:
             data_dict[test_name][algo] = []
