@@ -3,6 +3,8 @@ import requests
 import shutil
 import pathlib
 import subprocess
+import os
+import stat
 
 # Script command-line arguments
 parser = argparse.ArgumentParser()
@@ -20,7 +22,7 @@ sources = {
 # Proper part
 def download_one(url, folder):
     url = url.rstrip()
-    print('Downloading from... {0} '.format(url), end='')
+    print('Downloading from... {0} '.format(url), flush=True)
     
     local_filename = url[url.rfind('/')+1:] # TODO
     local_filepath = folder + local_filename
@@ -32,11 +34,13 @@ def download_one(url, folder):
 
     subprocess.run(["unzip", "-d" + folder, local_filepath, "*.mtx"])
     subprocess.run(["rm", local_filepath])
+    
+    os.chmod(os.getcwd() + "/" + local_filepath[:-4] + ".mtx", stat.S_IRUSR|stat.S_IWUSR|stat.S_IRGRP|stat.S_IROTH)
 
     return
 
 def download(source_name):
-    print('---- {0} ----'.format(source_name))
+    print('---- {0} ----'.format(source_name), flush=True)
     # Extract source info
     (urlfile, folder) = (sources[source_name]['urlfile'], sources[source_name]['folder'])
     

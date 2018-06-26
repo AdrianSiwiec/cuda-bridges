@@ -16,9 +16,13 @@ typedef pair<int, int> pii;
 std::vector<std::vector<int>> G;
 std::vector<bool> visited;
 std::vector<int> label;
+std::vector<int> cid;
+std::vector<int> csize;
+int component_id;
 
 void dfs(int start, int parent) {
     visited[start] = true;
+    cid[start] = component_id;
 
     for (auto x : G[start]) {
         if (x == parent) continue;
@@ -51,6 +55,7 @@ int main(int argc, char *argv[]) {
     G.resize(n + 1);
     visited.resize(n + 1);
     label.resize(n + 1);
+    cid.resize(n + 1);
 
     for (int i = 0; i < m; ++i) {
         getline(in, buf);
@@ -61,28 +66,46 @@ int main(int argc, char *argv[]) {
         if (a == b) continue;
         G[a].push_back(b);
         G[b].push_back(a);
-        in_edges.push_back(make_pair(min(a, b), max(a, b)));
+        // in_edges.push_back(make_pair(min(a, b), max(a, b)));
+        in_edges.push_back(make_pair(a, b));
     }
 
-    dfs(1, -1);
+    component_id = 1;
+    for (int i = 1; i <= n; ++i) {
+        // cout << i << endl;
+        if (!visited[i]) {
+            dfs(i, -1);
+            component_id++;
+        }
+    }
+    
+    csize.clear();
+    csize.resize(n + 1, 0);
+    for (int i = 1; i <= n; ++i) {
+        csize[cid[i]]++;
+    }
+
+    auto max_id = max_element(csize.begin(), csize.end()) - csize.begin();
 
     int id = 1;
     for (int i = 1; i <= n; ++i) {
-        if (visited[i]) {
+        if (cid[i] == max_id) {
             label[i] = id++;
         }
     }
 
-    set<pii> edges;
-    for (auto &e : in_edges) {
-        if (visited[e.first]) {
-          edges.insert(make_pair(label[e.first], label[e.second]));
+    n = id-1;
+    m = 0;
+
+    auto & out_edges = in_edges;
+    for (auto it = 0; it < in_edges.size(); ++it) {
+        auto e = in_edges[it];
+        if (cid[e.first] == max_id) {
+            out_edges[m++] = make_pair(label[e.first], label[e.second]);
         }
     }
 
-    vector<pii> out_edges(edges.begin(), edges.end());
-    n = id-1;
-    m = out_edges.size();
+    out_edges.resize(m);
 
     // cout << n << " " << m << endl;
     // for (auto & e : out_edges) {
