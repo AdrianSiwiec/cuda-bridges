@@ -338,6 +338,27 @@ mem_t<ll> relabel_and_direct(mem_t<edge>& device_edges, mem_t<int>& preorder,
     return final_edge_list;
 }
 
+void relabel(mem_t<edge>& device_edges, mem_t<int>& preorder,
+                             context_t& context) {
+    int undirected_m = device_edges.size();
+
+    edge* device_edges_data = device_edges.data();
+    int* preorder_data = preorder.data();
+
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            int from = device_edges_data[index].first - 1;
+            int to = device_edges_data[index].second - 1;
+
+            from = preorder_data[from];
+            to = preorder_data[to];
+
+            device_edges_data[index].first = from;
+            device_edges_data[index].second = to;
+        },
+        undirected_m, context);
+}
+
 mem_t<int> count_segments(mem_t<ll>& final_edge_list, context_t& context) {
     ll* final_edge_list_data = final_edge_list.data();
 
@@ -384,6 +405,37 @@ void reduce_outgoing(mem_t<int>& dest, mem_t<ll>& final_edge_list,
         },
         final_edge_list.size(), segments.data(), segments.size(), dest.data(),
         op, op_init, context);
+}
+
+void reduce_outgoing(mem_t<int>& minima, mem_t<int>& maxima, mem_t<edge>& edge_list,
+                     mem_t<int>& parent, context_t& context) {
+    edge* edge_list_data = edge_list.data();
+    int* parent_data = parent.data();
+    int* minima_data = minima.data();
+    int* maxima_data = maxima.data();
+
+    transform(
+        [=] MGPU_DEVICE(int index) {
+            // note: edge is undirected
+            int from = edge_list_data[index].first;
+            int to = edge_list_data[index].second;
+
+            if (to != parent_data[from]) {
+                // update 'from' edge outgoing min/max
+                atomicMax(maxima_data + from, to);
+                atomicMin(minima_data + from, to);
+            }
+            from ^= to;
+            to ^= from;
+            from ^= to;
+
+            if (to != parent_data[from]) {
+                // update 'from' edge outgoing min/max
+                atomicMax(maxima_data + from, to);
+                atomicMin(minima_data + from, to);
+            }
+        },
+        edge_list.size(), context);
 }
 
 mem_t<int> execute_segtree_queries(int const n, mem_t<int>& segtree_min,
@@ -474,11 +526,11 @@ mem_t<short> count_result(mem_t<edge>& device_edges, mem_t<int>& preorder,
     short* result_data = result.data();
     transform(
         [=] MGPU_DEVICE(int index) {
-            int from = device_edges_data[index].first - 1;
-            int to = device_edges_data[index].second - 1;
+            int from = device_edges_data[index].first; // - 1;
+            int to = device_edges_data[index].second;  // - 1;
 
-            from = preorder_data[from];
-            to = preorder_data[to];
+            // from = preorder_data[from];
+            // to = preorder_data[to];
 
             if (is_bridge_end_data[to] && parent_data[to] == from) {
                 result_data[index] = 1;
@@ -591,9 +643,10 @@ TestResult parallel_cc(Graph const& graph) {
     print_device_mem(parent);
 
     // Change original vertex numeration & direct edges
-    mem_t<ll> all_edges_directed =
-        relabel_and_direct(all_edges_undirected, preorder, context);
-    print_device_mem(all_edges_directed);
+    // mem_t<ll> all_edges_directed =
+    //     relabel_and_direct(all_edges_undirected, preorder, context);
+    // print_device_mem(all_edges_directed);
+    relabel(all_edges_undirected, preorder, context);
 
     if (detailed_time) {
         context.synchronize();
@@ -601,16 +654,17 @@ TestResult parallel_cc(Graph const& graph) {
     }
 
     // Find local min/max from outgoing edges for every vertex
-    mem_t<int> segments = count_segments(all_edges_directed, context);
-    print_device_mem(segments);
+    // mem_t<int> segments = count_segments(all_edges_directed, context);
+    // print_device_mem(segments);
 
     // Reduce segments to achieve min/max for each
-    mem_t<int> minima(n, context);
-    mem_t<int> maxima(n, context);
-    reduce_outgoing(minima, all_edges_directed, parent, segments,
-                    mgpu::minimum_t<int>(), n + 1, context);
-    reduce_outgoing(maxima, all_edges_directed, parent, segments,
-                    mgpu::maximum_t<int>(), -1, context);
+    mem_t<int> minima = mgpu::fill<int>(n + 1, n, context);
+    mem_t<int> maxima = mgpu::fill<int>(-1, n, context);
+    // reduce_outgoing(minima, all_edges_directed, parent, segments,
+    //                 mgpu::minimum_t<int>(), n + 1, context);
+    // reduce_outgoing(maxima, all_edges_directed, parent, segments,
+    //                 mgpu::maximum_t<int>(), -1, context);
+    reduce_outgoing(minima, maxima, all_edges_undirected, parent, context);
     print_device_mem(minima);
     print_device_mem(maxima);
 
