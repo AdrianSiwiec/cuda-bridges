@@ -3,7 +3,8 @@ CXXFLAGS=-O2 -std=c++11 -fno-stack-protector
 CXXINC=-I ./include/
 
 NVCC=/usr/local/cuda/bin/nvcc
-NVCCFLAGS=-arch sm_30 -O2 -std=c++11 --expt-extended-lambda -w
+NVCC_SM=sm_50
+NVCCFLAGS=-arch $(NVCC_SM) -O2 -std=c++11 --expt-extended-lambda -w
 NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudaweijajalistrank/ -I./3rdparty/GpuConnectedComponents/ -I./3rdparty/cudabfs/
 
 LDFLAGS=-L/usr/local/cuda/lib64 -lcudart
