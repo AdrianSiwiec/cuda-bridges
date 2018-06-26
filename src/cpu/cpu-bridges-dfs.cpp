@@ -11,17 +11,17 @@ std::vector<std::vector<int> > G;
 std::map<std::pair<int, int>, bool> bridges;
 
 struct node {
-    int preorder, low;
+    int preorder, low, parent;
     bool visited;
 
-    node(int visit_time = 0)
-        : preorder(visit_time), low(preorder), visited(visit_time > 0) {}
+    node(int parent = -1, int visit_time = 0)
+        : preorder(visit_time), low(preorder), visited(visit_time > 0), parent(parent) {}
 };
 
 std::vector<node> nodes;
 
 void dfs(int start, int parent) {
-    nodes[start] = node(visit_time++);
+    nodes[start] = node(parent, visit_time++);
 
     for (auto x : G[start]) {
         if (x == parent) continue;
@@ -35,10 +35,10 @@ void dfs(int start, int parent) {
         }
     }
 
-    if (nodes[start].low == nodes[start].preorder && parent != -1) {
-        bridges[std::make_pair(std::min(start, parent),
-                               std::max(start, parent))] = true;
-    }
+    // if (nodes[start].low == nodes[start].preorder && parent != -1) {
+    //     bridges[std::make_pair(std::min(start, parent),
+    //                            std::max(start, parent))] = true;
+    // }
     return;
 }
 
@@ -52,7 +52,7 @@ void prepare(int n) {
 TestResult sequential_dfs(Graph const& graph) {
     prepare(graph.get_N());
 
-    auto edges = graph.get_Edges();
+    auto const edges = graph.get_Edges();
 
     for (auto const& e : edges) {
         G[e.first].push_back(e.second);
@@ -65,11 +65,26 @@ TestResult sequential_dfs(Graph const& graph) {
     TestResult result(graph.get_M());
     int it = 0;
     for (auto const& e : edges) {
-        auto sorted_pair = e;
-        if (sorted_pair.first > sorted_pair.second)
-            std::swap(sorted_pair.first, sorted_pair.second);
-        if (bridges[sorted_pair]) {
-            result[it] = 1;
+        // auto sorted_pair = e;
+        // if (sorted_pair.first > sorted_pair.second)
+        //     std::swap(sorted_pair.first, sorted_pair.second);
+        // if (bridges[sorted_pair]) {
+        //     result[it] = 1;
+        // }
+        // it++;
+        int act = e.first, act_p = e.second;
+        if (nodes[act].parent == act_p) {
+            // tree edge
+            if (nodes[act].low == nodes[act].preorder) {
+                result[it] = 1;
+            }
+        }
+        std::swap(act, act_p);
+        if (nodes[act].parent == act_p) {
+            // tree edge
+            if (nodes[act].low == nodes[act].preorder) {
+                result[it] = 1;
+            }
         }
         it++;
     }
