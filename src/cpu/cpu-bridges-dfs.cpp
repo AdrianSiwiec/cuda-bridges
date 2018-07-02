@@ -5,6 +5,7 @@
 
 #include "graph.hpp"
 #include "test-result.hpp"
+#include "timer.hpp"
 
 int visit_time;
 std::vector<std::vector<int> > G;
@@ -50,6 +51,8 @@ void prepare(int n) {
 }
 
 TestResult sequential_dfs(Graph const& graph) {
+    Timer timer("cpu-dfs");
+
     prepare(graph.get_N());
 
     auto const edges = graph.get_Edges();
@@ -88,5 +91,9 @@ TestResult sequential_dfs(Graph const& graph) {
         }
         it++;
     }
+
+    timer.stop();
+    timer.print_info("Overall");
+
     return result;
 }
