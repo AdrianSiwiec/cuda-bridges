@@ -95,20 +95,17 @@ void Bridges(int n, int m, mem_t<int>& nodes, mem_t<int>& edges_from,
 }
 
 TestResult parallel_bfs_naive(Graph const& graph) {
-    Timer timer("gpu-bfs");
     standard_context_t context(false);
     
-    if (detailed_time) {
-        context.synchronize();
-        timer.print_and_restart("init cuda");
-    }
-
     // Prepare memory
     int const n = graph.get_N();
     int const undirected_m = graph.get_M();
     int const directed_m = graph.get_M() * 2;
 
     mem_t<edge> dev_edges = to_mem(graph.get_Edges(), context);
+    
+    Timer timer("gpu-bfs");
+    
     mem_t<int> dev_directed_edge_from(directed_m, context);
     mem_t<int> dev_directed_edge_to(directed_m, context);
     mem_t<int> dev_nodes(n + 1, context);
@@ -120,10 +117,10 @@ TestResult parallel_bfs_naive(Graph const& graph) {
     int* dev_directed_edge_to_data = dev_directed_edge_to.data();
     int* dev_nodes_data = dev_nodes.data();
 
-    if (detailed_time) {
-        context.synchronize();
-        timer.print_and_restart("init memory");
-    }
+    // if (detailed_time) {
+    //     context.synchronize();
+    //     timer.print_and_restart("init memory");
+    // }
 
     // Fill _directed_ arrays
     transform(
@@ -163,7 +160,7 @@ TestResult parallel_bfs_naive(Graph const& graph) {
     
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("preprocessing");
+        timer.print_and_restart("Preprocessing");
     }
 
     // Proper part
@@ -182,7 +179,8 @@ TestResult parallel_bfs_naive(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("Bridges");
+        timer.print_and_restart("Find Bridges");
+        timer.print_overall();
     }
 
     if (detailed_time) {

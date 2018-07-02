@@ -574,13 +574,13 @@ void fill_subtree_size_and_parent(mem_t<int>& subtree, mem_t<int>& parent,
 }
 
 TestResult parallel_cc(Graph const& graph) {
-    Timer timer("gpu-cc");
+    // Timer timer("gpu-cc");
     standard_context_t context(false);
         
-    if (detailed_time) {
-        context.synchronize();
-        timer.print_and_restart("init cuda");
-    }
+    // if (detailed_time) {
+    //     context.synchronize();
+    //     timer.print_and_restart("init cuda");
+    // }
 
     // Prepare constants
     int const n = graph.get_N();
@@ -590,10 +590,12 @@ TestResult parallel_cc(Graph const& graph) {
     // Copy input graph to device mem
     mem_t<edge> all_edges_undirected = to_mem(graph.get_Edges(), context);
 
-    if (detailed_time) {
-        context.synchronize();
-        timer.print_and_restart("init memory");
-    }
+    // if (detailed_time) {
+    //     context.synchronize();
+    //     timer.print_and_restart("init memory");
+    // }
+
+    Timer timer("gpu-cc");
 
     // Find spanning tree & direct edges
     mem_t<ll> tree_edges_directed;
@@ -608,7 +610,7 @@ TestResult parallel_cc(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("spanning tree");
+        timer.print_and_restart("Spanning Tree");
     }
 
     // List rank
@@ -626,7 +628,7 @@ TestResult parallel_cc(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("list rank");
+        timer.print_and_restart("List Rank");
     }
 
     // Count preorder
@@ -650,7 +652,7 @@ TestResult parallel_cc(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("preorder&subtree size&relabel");
+        timer.print_and_restart("Preorder & Subtree size");
     }
 
     // Find local min/max from outgoing edges for every vertex
@@ -670,7 +672,7 @@ TestResult parallel_cc(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("local min/max for vertices");
+        timer.print_and_restart("Local min/max for vertices");
     }
 
     // I N T E R V A L  T R E E to find min/max for each subtree
@@ -687,10 +689,10 @@ TestResult parallel_cc(Graph const& graph) {
         n, segtree_min, segtree_max, preorder, subtree, context);
     print_device_mem(is_bridge_end);
 
-    if (detailed_time) {
-        context.synchronize();
-        timer.print_and_restart("interval tree");
-    }
+    // if (detailed_time) {
+    //     context.synchronize();
+    //     timer.print_and_restart("Interval Tree");
+    // }
 
     // unbelievable, time to result!
     mem_t<short> result = count_result(all_edges_undirected, preorder, parent,
@@ -699,7 +701,8 @@ TestResult parallel_cc(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("extract result");
+        timer.print_and_restart("Find bridges");
+        timer.print_overall();
     }
 
     return TestResult(from_mem(result));

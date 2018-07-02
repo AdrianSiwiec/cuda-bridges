@@ -65,16 +65,10 @@ int main(int argc, char *argv[]) {
         std::string alg_name = args[i];
         // std::cerr << "=== " << alg_name << " ===" << std::endl;
 
-        Timer timer(alg_name);
-
         // Execute
-        timer.start();
         TestResult current = (*algorithms[alg_name])(input_graph);
-        timer.stop();
-
+        
         // Validate
-        timer.print_info("overall");
-
         // current.write_to_stdout();
 
         if (i >= 3) {
