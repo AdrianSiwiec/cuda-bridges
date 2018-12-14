@@ -1,11 +1,13 @@
 #include "cpu-bridges-dfs.hpp"
 #include "gpu-bridges-bfs.cuh"
+#include "gpu-bridges-bfs-gunrock.cuh"
 #include "gpu-bridges-cc.cuh"
 
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <unordered_map>
+#include <map>
 
 #include "graph.hpp"
 #include "test-result.hpp"
@@ -22,8 +24,10 @@ const std::string _usage =
 // Configuration of implementations to choose
 typedef TestResult (*BridgesFunction)(Graph const &);
 
-std::unordered_map<std::string, BridgesFunction> algorithms = {
+std::map<std::string, BridgesFunction> algorithms = {
     {"cpu-dfs", &sequential_dfs}, {"gpu-bfs", &parallel_bfs_naive},
+    {"gpu-bfs-gunrock", &parallel_bfs_gunrock},
+    {"gpu-bfs2", &parallel_bfs_naive},
     {"gpu-cc", &parallel_cc}};
 
 // Main func
@@ -37,7 +41,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> args(argv, argv + argc);
 
-    if (argc == 2) {
+    if (argc == 3 ) {
         // Take all algorithms if [VARIANTS] list is empty
         args.resize(2 + algorithms.size());
         int it = 2;
@@ -47,10 +51,16 @@ int main(int argc, char *argv[]) {
     }
 
     Graph const input_graph = Graph::read_from_file(argv[1]);
+    Graph const input_graph2 = Graph::read_from_file(argv[2]);
+    // Graph input_graph = Graph::read_from_stdin();
     // Graph input_graph = Graph::read_from_stdin();
     std::cout << "%%% File: " << args[1] << std::endl;
     std::cout << "%%% N: " << input_graph.get_N() << std::endl;
     std::cout << "%%% M: " << input_graph.get_M() << std::endl; 
+
+    std::cout << "%%% File: " << args[2] << std::endl;
+    std::cout << "%%% N: " << input_graph2.get_N() << std::endl;
+    std::cout << "%%% M: " << input_graph2.get_M() << std::endl; 
     // auto xd = input_graph.get_Edges(); 
     // for (auto e : xd) {
     //     std::cout << e.first << " " << e.second << std::endl;
@@ -65,16 +75,23 @@ int main(int argc, char *argv[]) {
         std::string alg_name = args[i];
         // std::cerr << "=== " << alg_name << " ===" << std::endl;
 
+        TestResult current(1);
+        if(alg_name == "gpu-bfs-gunrock") {
+            current = (*algorithms[alg_name])(input_graph2);
+        }
+
         // Execute
-        TestResult current = (*algorithms[alg_name])(input_graph);
+        else {
+            current = (*algorithms[alg_name])(input_graph);
+        }
         
         // Validate
         // current.write_to_stdout();
 
         if (i >= 3) {
-            assert(std::equal(previous_result.data(),
-                              previous_result.data() + input_graph.get_M(),
-                              current.data()));
+            //assert(std::equal(previous_result.data(),
+                              //previous_result.data() + input_graph.get_M(),
+                              //current.data()));
         }
         previous_result = current;
     }
