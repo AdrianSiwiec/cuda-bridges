@@ -16,6 +16,12 @@ How to run:
   cd ../..
   ```
 
-2. make prepare-tests (downloads tests)
+2. Download tests
+```
+make prepare-tests (downloads tests)
+```
 
-3. make run-tests
+3. Run the example
+```
+make run-tests
+```
