@@ -1,9 +1,13 @@
 How to run:
 
-make prepare-tests (downloads tests)
+1. Build Gunrock
 
-make run-tests
+  * cd 3rdparty/gunrock
+  * mkdir build
+  * cd build
+  * cmake ..
+  * make
 
-or
+2. make prepare-tests (downloads tests)
 
-make all (downloads and runs tests)
+3. make run-tests
