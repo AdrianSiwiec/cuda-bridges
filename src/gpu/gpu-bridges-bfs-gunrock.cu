@@ -116,7 +116,7 @@ void parallel_bfs_gunrock(Graph const& graph) {
 
     if (detailed_time) {
         context.synchronize();
-        timer.print_and_restart("Gunrock Mem Szacher-Macher");
+        timer.print_and_restart("Copy mem to host for Gunrock");
     }
 
     gunrock_bfs( grapho, graphi, config, data_t );
