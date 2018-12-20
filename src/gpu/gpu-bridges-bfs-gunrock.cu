@@ -14,89 +14,9 @@ using namespace std;
 #include "gpu-bridges-bfs.cuh"
 #include "gputils.cuh"
 #include "graph.hpp"
-#include "test-result.hpp"
 #include "timer.hpp"
 
-// Proper
-void BridgesGunrock(int n, int m, mem_t<int>& nodes, mem_t<int>& edges_from,
-             mem_t<int>& edges_to, mem_t<edge>& edges_undirected,
-             mem_t<int>& distance, mem_t<short>& result, context_t& context) {
-    // Prepare memory
-    int* nodes_data = nodes.data();
-    int* edges_from_data = edges_from.data();
-    int* edges_to_data = edges_to.data();
-    edge* edges_undirected_data = edges_undirected.data();
-    int* distance_data = distance.data();
-    short* result_data = result.data();
-
-    mem_t<int> node_parent = mgpu::fill<int>(-1, n, context);
-    mem_t<int> node_is_marked = mgpu::fill<int>(0, n, context);
-
-    int* node_parent_data = node_parent.data();
-    int* node_is_marked_data = node_is_marked.data();
-
-    // Determine parents
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            int from = edges_from_data[index];
-            int to = edges_to_data[index];
-
-            if (distance_data[from] == distance_data[to] - 1) {
-                node_parent_data[to] = from;
-            }
-        },
-        m, context);
-
-    // Mark nodes visited during traversal
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            int from = edges_from_data[index];
-            int to = edges_to_data[index];
-
-            // Check if its tree edge
-            if (node_parent_data[to] == from || node_parent_data[from] == to) {
-                return;
-            }
-
-            int higher = distance_data[to] < distance_data[from] ? to : from;
-            int lower = higher == to ? from : to;
-            int diff = distance_data[lower] - distance_data[higher];
-
-            // Equalize heights
-            while (diff--) {
-                node_is_marked_data[lower] = 1;
-                lower = node_parent_data[lower];
-            }
-
-            // Mark till LCA is found
-            while (lower != higher) {
-                node_is_marked_data[lower] = 1;
-                lower = node_parent_data[lower];
-
-                node_is_marked_data[higher] = 1;
-                higher = node_parent_data[higher];
-            }
-        },
-        m, context);
-
-    // Fill result array
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            int to = edges_undirected_data[index].first - 1;
-            int from = edges_undirected_data[index].second - 1;
-
-            if (node_parent_data[to] == from && node_is_marked_data[to] == 0) {
-                result_data[index] = 1;
-            }
-            if (node_parent_data[from] == to &&
-                node_is_marked_data[from] == 0) {
-                result_data[index] = 1;
-            }
-        },
-        edges_undirected.size(), context);
-}
-
-TestResult parallel_bfs_gunrock(Graph const& graph) {
+void parallel_bfs_gunrock(Graph const& graph) {
     standard_context_t context(false);   //true prints some additional info, for debug
 
     // Prepare memory
@@ -220,26 +140,4 @@ TestResult parallel_bfs_gunrock(Graph const& graph) {
         context.synchronize();
         timer.print_and_restart("Gunrock copy Result");
     }
-
-    // Find bridges
-    BridgesGunrock(n, directed_m, dev_nodes, dev_directed_edge_from,
-            dev_directed_edge_to, dev_edges, dev_distance, dev_final, context);
-
-    if (detailed_time) {
-        context.synchronize();
-        timer.print_and_restart("Find Bridges");
-        timer.print_overall();
-    }
-
-    if (detailed_time) {
-        mem_t<int> maxd(1, context);
-        reduce(dev_distance.data(), dev_distance.size(), maxd.data(), mgpu::maximum_t<int>(), context);
-        vector<int> maxd_host = from_mem(maxd);
-
-        context.synchronize();
-        timer.print_and_restart("Max distance: " + to_string(maxd_host.front()));
-    }
-
-    // Copy result to device and return
-    return TestResult(from_mem(dev_final));
 }

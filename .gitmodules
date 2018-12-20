@@ -4,9 +4,6 @@
 [submodule "3rdparty/moderngpu"]
 	path = 3rdparty/moderngpu
 	url = https://github.com/moderngpu/moderngpu.git
-[submodule "3rdparty/GpuConnectedComponents"]
-	path = 3rdparty/GpuConnectedComponents
-	url = https://github.com/stobis/GpuConnectedComponents.git
-[submodule "3rdparty/cudaweijajalistrank"]
-	path = 3rdparty/cudaweijajalistrank
-	url = https://stobis@bitbucket.org/pierreSquared/cudaweijajalistrank.git
+[submodule "3rdparty/gunrock"]
+	path = 3rdparty/gunrock
+	url = https://github.com/gunrock/gunrock.git

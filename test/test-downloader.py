@@ -14,8 +14,8 @@ args = parser.parse_args()
 # Pre-defined sources
 sources = {
     'Network Repository': {
-        'urlfile': 'networkrepository-urls.txt',
-        'folder': 'networkrepository/'
+        'urlfile': 'test/networkrepository-urls.txt',
+        'folder': 'test/networkrepository/'
     }
 }
 

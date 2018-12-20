@@ -30,6 +30,7 @@ def parse_one(parser, folder, file):
     
     file_path = path_preffix + folder + file
     parsed_path = path_preffix + folder + parsed_filename
+    print(os.path.dirname(os.path.abspath(__file__)))
     subprocess.run([parser, file_path, parsed_path])
 
     print('to file ({0}) DONE.'.format(parsed_filename))
@@ -54,5 +55,6 @@ def parse(source_name):
     return
 
 if __name__ == "__main__":
+    os.chdir("test")
     for source in sources:
         parse(source)

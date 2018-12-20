@@ -5,9 +5,9 @@ CXXINC=-I ./include/
 NVCC=/usr/local/cuda/bin/nvcc
 NVCC_SM=sm_50
 NVCCFLAGS=-arch $(NVCC_SM) -O2 -std=c++11 --expt-extended-lambda -w
-NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudaweijajalistrank/ -I./3rdparty/GpuConnectedComponents/ -I./3rdparty/cudabfs/ -I./3rdparty/gunrock
+NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ -I /home/z1123375/afs/profil_TCS/Desktop/cudaLic/cuda-bridges/3rdparty/gunrock
 
-LDFLAGS=-L/usr/local/cuda/lib64 -lcudart -L ./3rdparty/gunrock/build/lib -l gunrock
+LDFLAGS=-L/usr/local/cuda/lib64 -lcudart -L /home/z1123375/afs/profil_TCS/Desktop/cudaLic/cuda-bridges/3rdparty/gunrock/build/lib -l gunrock
 
 MGPU=3rdparty/moderngpu
 MGPUFLAGS=-I $(MGPU)/src
@@ -17,12 +17,17 @@ SRCDIR=src
 
 RUNNER_OBJ=$(patsubst src/%.cpp,obj/%.o,$(wildcard src/runner.cpp src/util/*.cpp src/cpu/*.cpp)) \
 	$(patsubst src/%.cu,obj/%.o,$(wildcard src/gpu/*.cu)) \
-	$(patsubst %.cu,obj/%.o,$(wildcard 3rdparty/cudaweijajalistrank/*.cu)) \
-	$(patsubst %.cu,obj/%.o,$(wildcard 3rdparty/GpuConnectedComponents/*.cu)) \
 	$(patsubst %.cu,obj/%.o,$(wildcard 3rdparty/cudabfs/bfs-mgpu.cu))
 
 
-all: runner.e networkrepository-parser.e
+all: prepare-tests run-tests
+
+prepare-tests: networkrepository-parser.e
+	python3 test/test-downloader.py
+	ulimit -s unlimited; python3 test/test-parser.py
+
+run-tests: runner.e
+	./runner.e test/networkrepository/road-asia-osm.mtx.bin test/networkrepository/kron_g500-logn16.mtx.bin
 
 remake: clean all
 
@@ -48,19 +53,11 @@ $(OBJDIR)/gpu/%.o: $(SRCDIR)/gpu/%.cu
 	@mkdir -p $(dir $@)
 	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
 	
-$(OBJDIR)/3rdparty/cudaweijajalistrank/%.o: 3rdparty/cudaweijajalistrank/%.cu
-	@mkdir -p $(dir $@)
-	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
-
-$(OBJDIR)/3rdparty/GpuConnectedComponents/%.o: 3rdparty/GpuConnectedComponents/%.cu
-	@mkdir -p $(dir $@)
-	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
-
 $(OBJDIR)/3rdparty/cudabfs/%.o: 3rdparty/cudabfs/%.cu
 	@mkdir -p $(dir $@)
 	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
 
-.PHONY: all clean
+.PHONY: all clean prepare-tests run-tests
 
 clean:
 	rm -rf obj *.e
