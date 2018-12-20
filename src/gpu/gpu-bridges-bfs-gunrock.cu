@@ -86,9 +86,8 @@ void parallel_bfs_gunrock(Graph const& graph) {
     }
 
     // Proper part
-    // Execute BFS to compute distances (needed for determine parents)
-    // bfs_mgpu::ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance,
-                // context);
+
+    // Gunrock data initialization
     struct GRGraph *grapho = (struct GRGraph*)malloc(sizeof(struct GRGraph));
     struct GRGraph *graphi = (struct GRGraph*)malloc(sizeof(struct GRGraph));
     graphi->num_nodes = n;
@@ -121,8 +120,6 @@ void parallel_bfs_gunrock(Graph const& graph) {
 
     gunrock_bfs( grapho, graphi, config, data_t );
 
-
-    //dispatch_bfs( grapho, graphi, config, data_t, 0, 0 );
 
     if (detailed_time) {
         context.synchronize();
