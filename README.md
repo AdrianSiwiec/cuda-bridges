@@ -1,9 +1,9 @@
 How to run:
 
-make prepare-tests
+make prepare-tests (downloads tests)
 
 make run-tests
 
 or
 
-make all 
+make all (downloads and runs tests)
