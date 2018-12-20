@@ -18,7 +18,7 @@ How to run:
 
 2. Download tests
 ```
-make prepare-tests (downloads tests)
+make prepare-tests
 ```
 
 3. Run the example
