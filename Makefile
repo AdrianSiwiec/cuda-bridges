@@ -2,13 +2,12 @@ CXX=g++
 CXXFLAGS=-O2 -std=c++11 -fno-stack-protector
 CXXINC=-I ./include/
 
-NVCC=/usr/local/cuda/bin/nvcc
+NVCC=/usr/local/cuda-10.1/bin/nvcc
 NVCC_SM=sm_50
 NVCCFLAGS=-arch $(NVCC_SM) -O2 -std=c++11 --expt-extended-lambda -w
 NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ -I 3rdparty/gunrock
 
-LDFLAGS=-L/usr/local/cuda/lib64 -lcudart -L 3rdparty/gunrock/build/lib -l gunrock
-
+LDFLAGS=-L/usr/local/cuda-10.1/lib64 -lcudart -L3rdparty/gunrock/build/lib -lgunrock
 MGPU=3rdparty/moderngpu
 MGPUFLAGS=-I $(MGPU)/src
 

@@ -1,2 +1,3 @@
 http://nrvis.com/download/data/dimacs10/kron_g500-logn16.zip
+http://nrvis.com/download/data/dimacs10/kron_g500-logn19.zip
 http://nrvis.com/download/data/road/road-asia-osm.zip
