@@ -21,7 +21,13 @@ How to run:
 make prepare-tests
 ```
 
-3. Run the example
+3. Add gunrock library to your path, for example:
+```
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:<path_to_your_repository>/3rdparty/gunrock/build/lib/
+export LD_LIBRARY_PATH
+```
+
+4. Run the example
 ```
 make run-tests
 ```
