@@ -111,7 +111,8 @@ void parallel_bfs_gunrock(Graph const& graph) {
     //config->num_devices = 1;
     config->quiet = 1;
     config->num_iters = 1;
-    config->enable_idempotence = true;
+    config->enable_idempotence = false;
+    config->mark_predecessors = false;
 
     if (detailed_time) {
         context.synchronize();
@@ -119,7 +120,9 @@ void parallel_bfs_gunrock(Graph const& graph) {
     }
 
     gunrock_bfs( grapho, graphi, config, data_t );
-
+    
+    printf("Returning after gunrock\n");
+    return;
 
     if (detailed_time) {
         context.synchronize();

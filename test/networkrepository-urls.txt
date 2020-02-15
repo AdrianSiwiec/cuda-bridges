@@ -1,3 +1,9 @@
 http://nrvis.com/download/data/dimacs10/kron_g500-logn16.zip
 http://nrvis.com/download/data/dimacs10/kron_g500-logn19.zip
+http://nrvis.com/download/data/dimacs10/kron_g500-logn20.zip
+http://nrvis.com/download/data/dimacs10/kron_g500-logn21.zip
 http://nrvis.com/download/data/road/road-asia-osm.zip
+http://nrvis.com/download/data/road/road-great-britain-osm.zip
+http://nrvis.com/download/data/road/road-roadNet-CA.zip
+http://nrvis.com/download/data/road/road-belgium-osm.zip
+http://nrvis.com/download/data/misc/roadNet-PA.zip

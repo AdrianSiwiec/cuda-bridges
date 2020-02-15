@@ -27,10 +27,10 @@ int main(int argc, char *argv[]) {
     Graph const input_graph = Graph::read_from_file(argv[1]);
     Graph const input_graph_gunrock = Graph::read_from_file(argv[2]);
 
-    cerr << "Running our bfs..." << endl;
-    parallel_bfs_naive( input_graph );
-    cerr << "Running our bfs second time..." << endl;
-    parallel_bfs_naive( input_graph );
+    // cerr << "Running our bfs..." << endl;
+    // parallel_bfs_naive( input_graph );
+    // cerr << "Running our bfs second time..." << endl;
+    // parallel_bfs_naive( input_graph );
     cerr << "Running Gunrock bfs..." << endl;
     parallel_bfs_gunrock( input_graph_gunrock );
     cerr << "After running Gunrock bfs, our bfs speeds up" << endl;
