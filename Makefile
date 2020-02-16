@@ -5,9 +5,9 @@ CXXINC=-I ./include/
 NVCC=/usr/local/cuda-10.1/bin/nvcc
 NVCC_SM=sm_50
 NVCCFLAGS=-arch $(NVCC_SM) -O2 -std=c++11 --expt-extended-lambda -w
-NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ -I 3rdparty/gunrock
+NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ 
 
-LDFLAGS=-L/usr/local/cuda-10.1/lib64 -lcudart -L3rdparty/gunrock/build/lib -lgunrock
+LDFLAGS=-L/usr/local/cuda-10.1/lib64 -lcudart 
 MGPU=3rdparty/moderngpu
 MGPUFLAGS=-I $(MGPU)/src
 
