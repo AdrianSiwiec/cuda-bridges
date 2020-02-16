@@ -1,10 +1,10 @@
 #include "gpu-bridges-bfs.cuh"
-#include "gpu-bridges-bfs-gunrock.cuh"
+#include "magic.cuh"
 
 #include <algorithm>
 #include <cassert>
 #include <iostream>
-#include <unordered_map>
+#include <unordered_map> 
 #include <map>
 
 #include "graph.hpp"
@@ -15,7 +15,7 @@ using namespace std;
 // Misc
 const std::string _usage = "USAGE: ./runner BFS_INTUT GUNROCK_BFS_INPUT\n\n";
 
-// Main func
+
 int main(int argc, char *argv[]) {
     std::ios_base::sync_with_stdio(false);
 
@@ -27,13 +27,13 @@ int main(int argc, char *argv[]) {
     Graph const input_graph = Graph::read_from_file(argv[1]);
     Graph const input_graph_gunrock = Graph::read_from_file(argv[2]);
 
-    // cerr << "Running our bfs..." << endl;
-    // parallel_bfs_naive( input_graph );
-    // cerr << "Running our bfs second time..." << endl;
-    // parallel_bfs_naive( input_graph );
-    cerr << "Running Gunrock bfs..." << endl;
-    parallel_bfs_gunrock( input_graph_gunrock );
-    cerr << "After running Gunrock bfs, our bfs speeds up" << endl;
+    cerr << "Running our bfs..." << endl;
+    parallel_bfs_naive( input_graph );
+    cerr << "Running our bfs second time..." << endl;
+    parallel_bfs_naive( input_graph );
+    cerr << "Running magic...\n";
+    magic();
+    cerr << "After running magic, our bfs speeds up" << endl;
     parallel_bfs_naive( input_graph );
 
     return 0;
