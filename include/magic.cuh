@@ -1,6 +1,0 @@
-#ifndef GPU_BRIDGES_BFS_GUNROCK_CUH
-#define GPU_BRIDGES_BFS_GUNROCK_CUH
-
-void magic();
-
-#endif  // GPU_BRIDGES_BFS_GUNROCK_CUH

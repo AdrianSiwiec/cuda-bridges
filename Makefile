@@ -1,11 +1,13 @@
-CXX=g++
-CXXFLAGS=-O2 -std=c++11 -fno-stack-protector
-CXXINC=-I ./include/
+# CXX=g++
+# # CXXFLAGS=-O2 -std=c++11 -fno-stack-protector
+# CXXFLAGS= -std=c++11 
+# CXXINC=-I ./include/
 
 NVCC=/usr/local/cuda-10.1/bin/nvcc
 NVCC_SM=sm_50
-NVCCFLAGS=-arch $(NVCC_SM) -O2 -std=c++11 --expt-extended-lambda -w
-NVCCINC=-I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ 
+# NVCCFLAGS=-arch $(NVCC_SM) -O2 -std=c++11 --expt-extended-lambda -w
+NVCCFLAGS=-arch $(NVCC_SM) -std=c++11 --expt-extended-lambda -w
+NVCCINC=-I ./include/ -I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ 
 
 LDFLAGS=-L/usr/local/cuda-10.1/lib64 -lcudart 
 MGPU=3rdparty/moderngpu
@@ -14,7 +16,9 @@ MGPUFLAGS=-I $(MGPU)/src
 OBJDIR=obj
 SRCDIR=src
 
-RUNNER_OBJ=$(patsubst src/%.cpp,obj/%.o,$(wildcard src/runner.cpp src/util/*.cpp src/cpu/*.cpp)) \
+ALLINC=$(NVCCINC) $(MGPUFLAGS)
+
+RUNNER_OBJ=$(patsubst src/%.cpp,obj/%.o,$(wildcard src/runner.cu src/util/*.cpp src/cpu/*.cpp)) \
 	$(patsubst src/%.cu,obj/%.o,$(wildcard src/gpu/*.cu)) \
 	$(patsubst %.cu,obj/%.o,$(wildcard 3rdparty/cudabfs/bfs-mgpu.cu))
 
@@ -31,30 +35,29 @@ run-tests: runner.e
 remake: clean all
 
 %.e: $(SRCDIR)/%.cpp
-	$(CXX) $(CXXFLAGS) $< -o $@
+	# $(CXX) $(CXXFLAGS) $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(ALLINC) $< -o $@
 
 runner.e: $(RUNNER_OBJ)
-	$(CXX) $(CXXFLAGS) $(CXXINC) $^ -o $@ $(LDFLAGS)
+	# $(CXX) $(CXXFLAGS) $(CXXINC) $^ -o $@ $(LDFLAGS)
+	$(NVCC) $(NVCCFLAGS) $(ALLINC) $(CXXINC) $^ -o $@ $(LDFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(CXXINC) -c $< -o $@
+	# $(CXX) $(CXXFLAGS) $(CXXINC) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(ALLINC) $(CXXINC) -c $< -o $@
 
 $(OBJDIR)/util/%.o: $(SRCDIR)/util/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(CXXINC) -c $< -o $@
-
-$(OBJDIR)/cpu/%.o: $(SRCDIR)/cpu/%.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(CXXINC) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(ALLINC) $(CXXINC) -c $< -o $@
 
 $(OBJDIR)/gpu/%.o: $(SRCDIR)/gpu/%.cu
 	@mkdir -p $(dir $@)
-	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(ALLINC) $(CXXINC) $(NVCCINC) -c $< -o $@
 	
 $(OBJDIR)/3rdparty/cudabfs/%.o: 3rdparty/cudabfs/%.cu
 	@mkdir -p $(dir $@)
-	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(CXXINC) $(NVCCINC) -c $< -o $@
+	$(NVCC) $(NVCCFLAGS) $(MGPUFLAGS) $(ALLINC) $(CXXINC) $(NVCCINC) -c $< -o $@
 
 .PHONY: all clean prepare-tests run-tests
 
