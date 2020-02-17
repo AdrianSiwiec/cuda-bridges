@@ -1,6 +1,6 @@
 NVCC=/usr/local/cuda-10.1/bin/nvcc
 NVCC_SM=sm_50
-NVCCFLAGS=-arch $(NVCC_SM) -std=c++11 --expt-extended-lambda -w
+NVCCFLAGS=-arch $(NVCC_SM) -std=c++11 --expt-extended-lambda -w -O2
 NVCCINC=-I ./include/ -I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ 
 
 LDFLAGS=-L/usr/local/cuda-10.1/lib64 -lcudart 
