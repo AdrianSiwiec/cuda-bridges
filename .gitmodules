@@ -1,9 +1,3 @@
-[submodule "3rdparty/cudabfs"]
-	path = 3rdparty/cudabfs
-	url = https://github.com/stobis/cudabfs.git
 [submodule "3rdparty/moderngpu"]
 	path = 3rdparty/moderngpu
 	url = https://github.com/moderngpu/moderngpu.git
-[submodule "3rdparty/gunrock"]
-	path = 3rdparty/gunrock
-	url = https://github.com/gunrock/gunrock.git
