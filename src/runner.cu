@@ -5,120 +5,94 @@ using namespace std;
 #include <moderngpu/kernel_mergesort.hxx>
 using namespace mgpu;
 
-#include "bfs-mgpu.cuh"
-#include "gputils.cuh"
-#include "graph.hpp"
-#include "timer.hpp"
+#include <moderngpu/kernel_intervalmove.hxx>
+#include <chrono>
+#include <string>
 
+class Timer {
+   private:
+    std::clock_t c_start, c_end;
+    std::string slug;
+    long double overall;
 
-// Misc
-const std::string _usage = "USAGE: ./runner BFS_INTUT\n\n";
+   public:
+    Timer(std::string);
 
-void magic()
-{
-    void *tmpPtr;
-    cudaMalloc((void **)(&tmpPtr), sizeof(int));
+    void start();
+    void stop();
+    long double get_ms();
+    void print_info(std::string);
+    void print_and_restart(std::string);
+    void print_overall();
+};
+
+Timer::Timer(std::string slug) : slug(slug), c_start(std::clock()), overall(0){}
+
+void Timer::start() { c_start = std::clock(); }
+
+void Timer::stop() { c_end = std::clock(); }
+
+long double Timer::get_ms() { return 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC; }
+
+void Timer::print_info(std::string desc) {
+    std::cout.precision(3);
+    std::cout << std::fixed << slug << ": " << desc << ": " << get_ms() << " ms." << std::endl;
 }
 
-void parallel_bfs_test(Graph const &graph)
+void Timer::print_and_restart(std::string desc) {
+    stop();
+    overall += get_ms();
+    print_info(desc);
+    start();
+}
+
+void Timer::print_overall() {
+    std::cout.precision(3);
+    std::cout << std::fixed << slug << ": " << "Overall" << ": " << overall << " ms." << std::endl;
+}
+
+
+void fun(bool magic, context_t &context)
 {
-    standard_context_t context(false);
+    int n = 10000000, m = 20000000;
+    mem_t<int> emptyMem0(n, context);
+    mem_t<int> emptyMem1(n, context);
+    mem_t<int> emptyMem2(m, context);
+    mem_t<int> emptyMem3(m, context);
 
-    // Preprocessing
-    int const n = graph.get_N();
-    int const undirected_m = graph.get_M();
-    int const directed_m = graph.get_M() * 2;
+    void *tmpPtr;
+    cudaMalloc((void **)(&tmpPtr), sizeof(int) * 8);
+    if (!magic)
+        cudaFree(tmpPtr);
 
-    mem_t<edge> dev_edges = to_mem(graph.get_Edges(), context);
+    // printf("n: %d, m: %d, edge_frontier_size: %d, node_frontier_size: %d\n", n, m, edge_frontier_size, node_frontier_size);
 
-    Timer timer("gpu-bfs");
+    for (int aa = 0; aa < 10000; aa++)
+        interval_gather(emptyMem2.data(), 2,
+                        emptyMem0.data(), 1,
+                        emptyMem1.data(), emptyMem3.data(),
+                        context);
 
-    mem_t<int> dev_directed_edge_from(directed_m, context);
-    mem_t<int> dev_directed_edge_to(directed_m, context);
-    mem_t<int> dev_nodes(n + 1, context);
-    mem_t<int> dev_distance1 = mgpu::fill<int>(-1, n, context);
-    mem_t<int> dev_distance2 = mgpu::fill<int>(-1, n, context);
-    mem_t<int> dev_distance3 = mgpu::fill<int>(-1, n, context);
-    mem_t<short> dev_final = mgpu::fill<short>(0, undirected_m, context);
-
-    edge *dev_edges_data = dev_edges.data();
-    int *dev_directed_edge_from_data = dev_directed_edge_from.data();
-    int *dev_directed_edge_to_data = dev_directed_edge_to.data();
-    int *dev_nodes_data = dev_nodes.data();
-
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            int from = dev_edges_data[index].first - 1;
-            int to = dev_edges_data[index].second - 1;
-
-            dev_directed_edge_from_data[index] = from;
-            dev_directed_edge_from_data[index + undirected_m] = to;
-
-            dev_directed_edge_to_data[index] = to;
-            dev_directed_edge_to_data[index + undirected_m] = from;
-        },
-        undirected_m, context);
-
-    mergesort(dev_directed_edge_from_data, dev_directed_edge_to_data,
-              directed_m, mgpu::less_t<int>(), context);
-
-    transform(
-        [=] MGPU_DEVICE(int index) {
-            int my_num = dev_directed_edge_from_data[index];
-            if (index == directed_m - 1)
-            {
-                dev_nodes_data[my_num + 1] = index + 1;
-                return;
-            }
-            int next_num = dev_directed_edge_from_data[index + 1];
-            if (my_num != next_num)
-            {
-                dev_nodes_data[my_num + 1] = index + 1;
-            }
-            if (index == 0)
-            {
-                dev_nodes_data[0] = 0;
-            }
-        },
-        directed_m, context);
-
-    context.synchronize();
-    timer.print_and_restart("Preprocessing");
-
-    // Proper part
-    // First - run BFS two times, to see there are no speed ups
-    bfs_mgpu::ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance1,
-                          context);
-    context.synchronize();
-    timer.print_and_restart("BFS first");
-
-    bfs_mgpu::ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance2,
-                          context);
-    context.synchronize();
-    timer.print_and_restart("BFS second");
-
-    cerr << "Running magic" << endl;
-    magic();
-
-    // After dummy alloc, BFS speeds up.
-    bfs_mgpu::ParallelBFS(n, directed_m, dev_nodes, dev_directed_edge_to, 0, dev_distance3,
-                          context);
-    context.synchronize();
-    timer.print_and_restart("BFS speeds up");
+    if (magic)
+        cudaFree(tmpPtr);
 }
 
 int main(int argc, char *argv[])
 {
-    std::ios_base::sync_with_stdio(false);
+    standard_context_t context(false);
+    Timer timer("gpu-bfs");
 
-    if (argc < 1)
-    {
-        std::cerr << _usage << std::endl;
-        exit(1);
-    }
+    fun(true, context);
+    context.synchronize();
+    timer.print_and_restart("1");
 
-    Graph const input_graph = Graph::read_from_file(argv[1]);
-    parallel_bfs_test(input_graph);
+    fun(false, context);
+    context.synchronize();
+    timer.print_and_restart("2");
+
+    fun(true, context);
+    context.synchronize();
+    timer.print_and_restart("3");
 
     return 0;
 }

@@ -1,7 +1,7 @@
 NVCC=/usr/local/cuda-10.1/bin/nvcc
 NVCC_SM=sm_50
 NVCCFLAGS=-arch $(NVCC_SM) -std=c++11 --expt-extended-lambda -w -O2
-NVCCINC=-I ./include/ -I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc -I./3rdparty/cudabfs/ 
+NVCCINC=-I ./include/ -I/usr/local/cuda/include -I/usr/local/cuda/samples/common/inc
 
 LDFLAGS=-L/usr/local/cuda-10.1/lib64 -lcudart 
 MGPU=3rdparty/moderngpu
@@ -17,14 +17,10 @@ RUNNER_OBJ=$(patsubst src/%.cpp,obj/%.o,$(wildcard src/runner.cu src/util/*.cpp 
 	$(patsubst %.cu,obj/%.o,$(wildcard 3rdparty/cudabfs/bfs-mgpu.cu))
 
 
-all: prepare-tests run-tests
-
-prepare-tests: networkrepository-parser.e
-	python3 test/test-downloader.py
-	ulimit -s unlimited; python3 test/test-parser.py
+all: run-tests
 
 run-tests: runner.e
-	./runner.e test/networkrepository/road-asia-osm.mtx.bin
+	./runner.e
 
 remake: clean all
 
