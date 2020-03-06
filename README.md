@@ -6,12 +6,7 @@ git clone --single-branch --branch Strange-speed-up https://github.com/AdrianSiw
 
 How to run:
 
-1. Download tests
-```
-make prepare-tests
-```
-
-2. Run the example
+1. Run the example
 ```
 make run-tests
 ```

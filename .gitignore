@@ -1,6 +1,4 @@
 
-# Created by https://www.gitignore.io/api/cuda,visualstudiocode
-
 ### CUDA ###
 *.i
 *.ii
@@ -11,25 +9,8 @@
 
 ### VisualStudioCode ###
 .vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
 .history
 
 
-# End of https://www.gitignore.io/api/cuda,visualstudiocode
-
-# Tests
-test/**
-!test/test-downloader.py
-!test/networkrepository-urls.txt
-!test/test-parser.py
-
-# Tests.stats
-stats.out
-stats.csv
-
 # Binaries
 *.e
-obj/**
