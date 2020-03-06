@@ -39,21 +39,18 @@ int main(int argc, char *argv[])
     mgpu::standard_context_t context(false);
     std::clock_t c0 = std::clock();
 
-    fun(true, context);
+    fun(false, context);
     context.synchronize();
-
     std::clock_t c1 = std::clock();
     print_ms(c0, c1, "1st");
 
     fun(false, context);
     context.synchronize();
-
     std::clock_t c2 = std::clock();
     print_ms(c1, c2, "2nd");
 
     fun(true, context);
     context.synchronize();
-
     std::clock_t c3 = std::clock();
     print_ms(c2, c3, "3rd");
 
